@@ -1,0 +1,395 @@
+const jf = require('../jellyfin');
+const tmdb = require('../tmdb');
+
+// ── Cache ──
+const cache = new Map();
+function cached(key, ttl, fn) {
+  return async (...args) => {
+    const now = Date.now();
+    const hit = cache.get(key);
+    if (hit && hit.ok && now - hit.ts < ttl) return hit.data;
+    try {
+      const data = await fn(...args);
+      if (data !== null && data !== undefined) cache.set(key, { ts: now, data, ok: true });
+      return data;
+    } catch(e) {
+      console.error(`[cache:${key}]`, e.message);
+      return hit ? hit.data : null;
+    }
+  };
+}
+
+// ── Quality detection ──
+function qualityFromVideo(v) {
+  if (!v) return null;
+  const w = v.Width || 0, h = v.Height || 0;
+  if (w >= 3840 || h >= 2160) return '4K';
+  if (w >= 1920 || h >= 1080) return '1080p';
+  if (w >= 1280 || h >= 720) return '720p';
+  if (w >= 640 || h >= 480) return '480p';
+  return 'SD';
+}
+
+function is3D(streams, source) {
+  if (streams && streams.some(s => s.Video3DFormat)) return true;
+  const n = (source && source.Name) || '', p = (source && source.Path) || '';
+  return /3d|hsbs|h-sbs|mvc/i.test(n) || /3d|hsbs|h-sbs|mvc/i.test(p);
+}
+
+function qualitiesFromSource(streams, source) {
+  const video = streams && streams.find(s => s.Type === 'Video');
+  if (is3D(streams, source)) {
+    const w = video ? Math.floor((video.Width || 0) / 2) : 0;
+    const h = video ? (video.Height || 0) : 0;
+    let res = w >= 1920 || h >= 1080 ? '1080p' : w >= 1280 || h >= 720 ? '720p' : null;
+    return [res ? `${res} 3D` : '3D'];
+  }
+  const res = qualityFromVideo(video);
+  return res ? [res] : [];
+}
+
+function audioFromStreams(streams) {
+  if (!streams) return null;
+  const a = streams.find(s => s.Type === 'Audio' && s.IsDefault && s.Language === 'eng')
+    || streams.find(s => s.Type === 'Audio' && s.IsDefault)
+    || streams.find(s => s.Type === 'Audio');
+  if (!a) return null;
+  const spatial = (a.AudioSpatialFormat || '').toLowerCase();
+  if (spatial.includes('atmos')) return 'Atmos';
+  if (spatial.includes('dtsx') || spatial.includes('dts:x')) return 'DTS:X';
+  const profile = (a.Profile || '').toLowerCase();
+  if (profile.includes('atmos')) return 'Atmos';
+  if (profile.includes('truehd')) return 'TrueHD';
+  if (profile.includes('dts-hd ma')) return 'DTS-HD MA';
+  if (profile.includes('dts-hd')) return 'DTS-HD';
+  const codec = (a.Codec || '').toLowerCase();
+  if (codec === 'dts') return 'DTS';
+  if (codec === 'eac3') return 'DD+';
+  if (codec === 'ac3') return 'DD';
+  if (codec === 'aac') return 'AAC';
+  if (codec === 'flac') return 'FLAC';
+  if (codec === 'mp3') return 'MP3';
+  return null;
+}
+
+function mapItem(i, token) {
+  const sources = i.MediaSources || [];
+  const qOrder = ['4K', '4K 3D', '1080p 3D', '1080p', '720p 3D', '720p', '3D', '480p', 'SD'];
+  const qualitySet = new Set();
+  if (sources.length > 0) {
+    sources.forEach(src => qualitiesFromSource(src.MediaStreams, src).forEach(q => qualitySet.add(q)));
+  } else {
+    qualitiesFromSource(i.MediaStreams, null).forEach(q => qualitySet.add(q));
+  }
+  const qualities = Array.from(qualitySet).sort((a, b) => {
+    const ai = qOrder.indexOf(a), bi = qOrder.indexOf(b);
+    return (ai === -1 ? 99 : ai) - (bi === -1 ? 99 : bi);
+  });
+  const people = i.People || [];
+  return {
+    id: i.Id,
+    title: i.Name,
+    originalTitle: i.OriginalTitle,
+    year: i.ProductionYear,
+    type: i.Type,
+    seriesName: i.SeriesName,
+    seriesId: i.SeriesId,
+    seasonId: i.SeasonId,
+    indexNumber: i.IndexNumber,
+    parentIndexNumber: i.ParentIndexNumber,
+    genre: (i.Genres || []).slice(0, 2).join(' / '),
+    genres: i.Genres || [],
+    rating: i.OfficialRating,
+    score: i.CommunityRating,
+    overview: i.Overview,
+    tagline: i.Taglines ? (i.Taglines[0] || '') : '',
+    runtime: i.RunTimeTicks,
+    qualities,
+    audio: audioFromStreams(i.MediaStreams),
+    versionCount: sources.length || 1,
+    studios: (i.Studios || []).map(s => s.Name),
+    cast: people.filter(p => p.Type === 'Actor').slice(0, 8).map(p => ({
+      id: p.Id, name: p.Name, role: p.Role, imageTag: p.PrimaryImageTag || null,
+    })),
+    director: (people.find(p => p.Type === 'Director') || {}).Name || null,
+    posterUrl: jf.imageUrl(i.Id, 'Primary', { token }),
+    backdropUrl: jf.imageUrl(i.Id, 'Backdrop/0', { token, maxWidth: 1920 }),
+    thumbUrl: i.ImageTags && i.ImageTags.Thumb ? jf.imageUrl(i.Id, 'Thumb', { token }) : null,
+    logoUrl: i.ImageTags && i.ImageTags.Logo ? jf.imageUrl(i.Id, 'Logo', { token }) : null,
+    userData: i.UserData || null,
+  };
+}
+
+function dedup(items) {
+  const map = new Map();
+  items.forEach(item => {
+    const key = `${item.title}__${item.year}`;
+    if (map.has(key)) {
+      const ex = map.get(key);
+      const allQ = [...new Set([...ex.qualities, ...item.qualities])];
+      const qOrder = ['4K', '4K 3D', '1080p 3D', '1080p', '720p 3D', '720p', '3D', '480p', 'SD'];
+      ex.qualities = allQ.sort((a, b) => (qOrder.indexOf(a) === -1 ? 99 : qOrder.indexOf(a)) - (qOrder.indexOf(b) === -1 ? 99 : qOrder.indexOf(b)));
+      ex.versionCount = (ex.versionCount || 1) + 1;
+    } else {
+      map.set(key, { ...item });
+    }
+  });
+  return Array.from(map.values());
+}
+
+// ── Route handlers ──
+async function handleApi(pathname, query, session) {
+  const token = session.token;
+  const userId = session.userId;
+
+  // Now playing
+  if (pathname === '/api/now-playing') {
+    const sessions = await jf.get('/Sessions', token);
+    const active = (sessions || []).filter(s => s.NowPlayingItem && ['Movie','Episode','Video'].includes(s.NowPlayingItem.Type));
+    if (!active.length) return null;
+    const playing = active.find(s => !s.PlayState.IsPaused) || active[0];
+    const item = playing.NowPlayingItem;
+    let full = item;
+    try { full = await jf.get(`/Items/${item.Id}?fields=Overview,Taglines,Genres,OfficialRating,CommunityRating,People,MediaStreams,Studios`, token); } catch(e) {}
+    const mapped = mapItem({ ...full, MediaStreams: full.MediaStreams || [] }, token);
+    let trailerKey = null, castPhotos = [];
+    try {
+      const t = await tmdb.getTrailer(item.Name, item.ProductionYear, item.Type === 'Movie' ? 'movie' : 'tv');
+      if (t) { trailerKey = t.trailerKey; castPhotos = t.cast.map(c => c.photo); }
+    } catch(e) {}
+    return {
+      item: mapped,
+      positionTicks: playing.PlayState.PositionTicks || 0,
+      runtimeTicks: full.RunTimeTicks || 0,
+      isPaused: playing.PlayState.IsPaused || false,
+      sessionUser: playing.UserName || '',
+      allUsers: active.map(s => ({ user: s.UserName, title: s.NowPlayingItem.Name, isPaused: s.PlayState.IsPaused, device: s.DeviceName })),
+      trailerKey, castPhotos,
+    };
+  }
+
+  // Recently added
+  if (pathname === '/api/recently-added') {
+    const data = await jf.get(`/Users/${userId}/Items/Latest?MediaType=Video&IncludeItemTypes=Movie&Limit=24&fields=Overview,Genres,ProductionYear,OfficialRating,CommunityRating,People,MediaStreams,MediaSources`, token);
+    return dedup((data || []).map(i => mapItem(i, token))).slice(0, 12);
+  }
+
+  // Continue watching
+  if (pathname === '/api/continue-watching') {
+    const data = await jf.get(`/Users/${userId}/Items/Resume?MediaType=Video&Limit=12&fields=Overview,Genres,ProductionYear,OfficialRating,UserData,MediaStreams,MediaSources`, token);
+    return dedup((data.Items || []).map(i => mapItem(i, token))).slice(0, 8);
+  }
+
+  // Popular
+  if (pathname === '/api/popular') {
+    const data = await jf.get(`/Users/${userId}/Items?IncludeItemTypes=Movie&SortBy=CommunityRating&SortOrder=Descending&Limit=24&fields=Overview,Genres,ProductionYear,OfficialRating,CommunityRating,People,MediaStreams,MediaSources&Recursive=true`, token);
+    const items = (data.Items || []).filter(i => i.CommunityRating >= 7).map(i => mapItem(i, token));
+    return dedup(items).slice(0, 12);
+  }
+
+  // History
+  if (pathname === '/api/history') {
+    const data = await jf.get(`/Users/${userId}/Items?SortBy=DatePlayed&SortOrder=Descending&Filters=IsPlayed&IncludeItemTypes=Movie&Recursive=true&Limit=24&fields=Overview,Genres,ProductionYear,OfficialRating,CommunityRating,UserData,MediaStreams,MediaSources`, token);
+    return dedup((data.Items || []).map(i => ({ ...mapItem(i, token), playedDate: i.UserData && i.UserData.LastPlayedDate }))).slice(0, 12);
+  }
+
+  // Stats
+  if (pathname === '/api/stats') {
+    const [movies, shows, episodes, music] = await Promise.all([
+      jf.get(`/Users/${userId}/Items?IncludeItemTypes=Movie&Recursive=true&Limit=0&EnableTotalRecordCount=true`, token),
+      jf.get(`/Users/${userId}/Items?IncludeItemTypes=Series&Recursive=true&Limit=0&EnableTotalRecordCount=true`, token),
+      jf.get(`/Users/${userId}/Items?IncludeItemTypes=Episode&Recursive=true&Limit=0&EnableTotalRecordCount=true`, token),
+      jf.get(`/Users/${userId}/Items?IncludeItemTypes=Audio&Recursive=true&Limit=0&EnableTotalRecordCount=true`, token).catch(() => ({ TotalRecordCount: 0 })),
+    ]);
+    return { movies: movies.TotalRecordCount || 0, shows: shows.TotalRecordCount || 0, episodes: episodes.TotalRecordCount || 0, songs: music.TotalRecordCount || 0 };
+  }
+
+  // Random
+  if (pathname === '/api/random') {
+    const data = await jf.get(`/Users/${userId}/Items?IncludeItemTypes=Movie&Recursive=true&SortBy=Random&Limit=1&fields=Overview,Genres,ProductionYear,OfficialRating,CommunityRating,People,Taglines,MediaStreams,MediaSources`, token);
+    const item = (data.Items || [])[0];
+    return item ? mapItem(item, token) : null;
+  }
+
+  // Coming soon (TMDB)
+  if (pathname === '/api/coming-soon') {
+    return cached('coming-soon', 60 * 60 * 1000, tmdb.getUpcoming)();
+  }
+
+  // On this day (TMDB)
+  if (pathname === '/api/on-this-day') {
+    return cached('on-this-day', 60 * 60 * 1000, tmdb.getOnThisDay)();
+  }
+
+  // Search
+  if (pathname === '/api/search') {
+    const q = query.q || '';
+    if (q.length < 2) return [];
+    const data = await jf.get(`/Users/${userId}/Items?SearchTerm=${encodeURIComponent(q)}&IncludeItemTypes=Movie,Series,Episode,Audio&Recursive=true&Limit=24&SortBy=SortName&fields=Overview,Genres,ProductionYear,OfficialRating,CommunityRating,People,MediaStreams`, token);
+    const lower = q.toLowerCase();
+    return (data.Items || []).filter(i => i.Name && i.Name.toLowerCase().includes(lower)).slice(0, 16).map(i => mapItem(i, token));
+  }
+
+  // All movies (paginated)
+  if (pathname === '/api/movies') {
+    const { sort = 'SortName', order = 'Ascending', genre = '', start = '0' } = query;
+    let ep = `/Users/${userId}/Items?IncludeItemTypes=Movie&Recursive=true&fields=Overview,Genres,ProductionYear,OfficialRating,CommunityRating,MediaStreams,MediaSources&Limit=96&StartIndex=${start}&SortBy=${sort}&SortOrder=${order}`;
+    if (genre) ep += `&Genres=${encodeURIComponent(genre)}`;
+    const data = await jf.get(ep, token);
+    const items = dedup((data.Items || []).map(i => mapItem(i, token)));
+    return { total: data.TotalRecordCount || 0, items: items.slice(0, 48) };
+  }
+
+  // TV Shows
+  if (pathname === '/api/shows') {
+    const { sort = 'SortName', order = 'Ascending', genre = '', start = '0' } = query;
+    let ep = `/Users/${userId}/Items?IncludeItemTypes=Series&Recursive=true&fields=Overview,Genres,ProductionYear,OfficialRating,CommunityRating,ImageTags&Limit=48&StartIndex=${start}&SortBy=${sort}&SortOrder=${order}`;
+    if (genre) ep += `&Genres=${encodeURIComponent(genre)}`;
+    const data = await jf.get(ep, token);
+    return { total: data.TotalRecordCount || 0, items: (data.Items || []).map(i => mapItem(i, token)) };
+  }
+
+  // Show seasons
+  if (pathname.match(/^\/api\/shows\/[^/]+\/seasons$/)) {
+    const showId = pathname.split('/')[3];
+    const data = await jf.get(`/Shows/${showId}/Seasons?userId=${userId}&fields=Overview,ImageTags`, token);
+    return (data.Items || []).map(i => mapItem(i, token));
+  }
+
+  // Season episodes
+  if (pathname.match(/^\/api\/shows\/[^/]+\/seasons\/[^/]+\/episodes$/)) {
+    const parts = pathname.split('/');
+    const showId = parts[3], seasonId = parts[5];
+    const data = await jf.get(`/Shows/${showId}/Episodes?seasonId=${seasonId}&userId=${userId}&fields=Overview,MediaStreams,MediaSources,UserData,ImageTags`, token);
+    return (data.Items || []).map(i => mapItem(i, token));
+  }
+
+  // Music - artists
+  if (pathname === '/api/music/artists') {
+    const data = await jf.get(`/Artists?userId=${userId}&Recursive=true&fields=Overview,ImageTags&SortBy=SortName&Limit=100`, token);
+    return (data.Items || []).map(i => ({ id: i.Id, name: i.Name, overview: i.Overview, imageUrl: jf.imageUrl(i.Id, 'Primary', { token }) }));
+  }
+
+  // Music - albums
+  if (pathname === '/api/music/albums') {
+    const artist = query.artistId;
+    let ep = `/Users/${userId}/Items?IncludeItemTypes=MusicAlbum&Recursive=true&SortBy=ProductionYear&SortOrder=Descending&fields=Overview,ProductionYear,AlbumArtist,ImageTags&Limit=50`;
+    if (artist) ep += `&ArtistIds=${artist}`;
+    const data = await jf.get(ep, token);
+    return (data.Items || []).map(i => ({ id: i.Id, title: i.Name, artist: i.AlbumArtist, year: i.ProductionYear, imageUrl: jf.imageUrl(i.Id, 'Primary', { token }) }));
+  }
+
+  // Music - tracks
+  if (pathname === '/api/music/tracks') {
+    const albumId = query.albumId;
+    if (!albumId) return [];
+    const data = await jf.get(`/Users/${userId}/Items?ParentId=${albumId}&IncludeItemTypes=Audio&SortBy=ParentIndexNumber,IndexNumber&fields=Overview,MediaStreams&Limit=100`, token);
+    return (data.Items || []).map(i => ({
+      id: i.Id, title: i.Name, trackNumber: i.IndexNumber, duration: i.RunTimeTicks,
+      artist: i.AlbumArtist, album: i.Album,
+      streamUrl: jf.streamUrl(i.Id, token),
+    }));
+  }
+
+  // Genres
+  if (pathname === '/api/genres') {
+    const type = query.type || 'Movie';
+    const data = await jf.get(`/Genres?IncludeItemTypes=${type}&Recursive=true&Limit=100`, token);
+    return (data.Items || []).map(g => g.Name).sort();
+  }
+
+  // Item detail
+  if (pathname.match(/^\/api\/items\/[^/]+$/)) {
+    const itemId = pathname.split('/')[3];
+    const data = await jf.get(`/Items/${itemId}?userId=${userId}&fields=Overview,Taglines,Genres,OfficialRating,CommunityRating,People,MediaStreams,MediaSources,Studios,Tags,ExternalUrls,ProviderIds`, token);
+    return mapItem(data, token);
+  }
+
+  // Weather
+  if (pathname === '/api/weather') {
+    const city = query.city || 'Brisbane';
+    const cacheKey = `weather:${city}`;
+    return cached(cacheKey, 15 * 60 * 1000, async () => {
+      const data = await new Promise((resolve, reject) => {
+        const https = require('https');
+        const req = https.request({ hostname: 'wttr.in', path: `/${encodeURIComponent(city)}?format=j1`, method: 'GET', headers: { 'Accept': 'application/json', 'User-Agent': 'CyanFin/0.9' }, timeout: 8000 }, (res) => {
+          let d = ''; res.on('data', c => d += c); res.on('end', () => { try { resolve(JSON.parse(d)); } catch(e) { reject(e); } });
+        });
+        req.on('error', reject); req.on('timeout', () => { req.destroy(); reject(new Error('timeout')); }); req.end();
+      });
+      const cur = data.current_condition[0];
+      return { city, temp: cur.temp_C, tempF: cur.temp_F, desc: cur.weatherDesc[0].value, humidity: cur.humidity, feelsLike: cur.FeelsLikeC, code: parseInt(cur.weatherCode) };
+    })();
+  }
+
+  // Best 3D
+  if (pathname === '/api/best-3d') {
+    const good3D = ['Avatar','How to Train Your Dragon','Life of Pi','Gravity','Pacific Rim','Prometheus','The Walk','Hugo','Pina','Doctor Strange','Jungle Book','Thor','Spider-Man','Spider-Verse','Avengers','Transformers','Alice in Wonderland','Coraline','Up','Monsters Inc','Ice Age','Rio','Interstellar','Mad Max','The Martian','Everest','Mission Impossible','Star Wars','Rogue One','Top Gun Maverick','Dune'];
+    const data = await jf.get(`/Users/${userId}/Items?IncludeItemTypes=Movie&Recursive=true&Limit=500&fields=MediaSources,MediaStreams&SortBy=SortName`, token);
+    return (data.Items || []).filter(item => {
+      const sources = item.MediaSources || [];
+      return sources.some(s => /3d|hsbs|h-sbs|mvc/i.test(s.Name||'') || /3d|hsbs|h-sbs|mvc/i.test(s.Path||''))
+        && good3D.some(t => item.Name && item.Name.toLowerCase().includes(t.toLowerCase()));
+    }).map(i => mapItem(i, token));
+  }
+
+  // Server health
+  if (pathname === '/api/health') {
+    const start = Date.now();
+    const [info, sessions, activity, libraries, devices, plugins, gh] = await Promise.all([
+      jf.get('/System/Info', token),
+      jf.get('/Sessions', token),
+      jf.get('/System/ActivityLog/Entries?Limit=10', token),
+      jf.get('/Library/VirtualFolders', token),
+      jf.get('/Devices', token),
+      jf.get('/Plugins', token).catch(() => ({ Items: [] })),
+      require('https') && new Promise(resolve => {
+        const r = require('https').request({ hostname:'api.github.com', path:'/repos/Shamuoo/CyanFin/releases/latest', method:'GET', headers:{'User-Agent':'CyanFin','Accept':'application/json'}, timeout:5000 }, res => {
+          let d=''; res.on('data',c=>d+=c); res.on('end',()=>{ try{resolve(JSON.parse(d));}catch{resolve(null);} });
+        }); r.on('error',()=>resolve(null)); r.on('timeout',()=>{r.destroy();resolve(null);}); r.end();
+      }),
+    ]);
+    const latency = Date.now() - start;
+    const active = (sessions||[]).filter(s=>s.NowPlayingItem);
+    return {
+      latency, jellyfinUrl: process.env.JELLYFIN_URL,
+      cyanFinVersion: '0.9.0',
+      github: gh ? { latestRelease: gh.tag_name, releaseName: gh.name, publishedAt: gh.published_at, isLatest: gh.tag_name === 'v0.9.0' } : null,
+      serverName: info.ServerName, version: info.Version, os: info.OperatingSystem, arch: info.SystemArchitecture,
+      localAddress: info.LocalAddress, wanAddress: info.WanAddress, hasUpdate: info.HasUpdateAvailable,
+      activeSessions: active.length, totalSessions: (sessions||[]).length,
+      transcoding: active.filter(s=>s.TranscodingInfo).length,
+      nowPlaying: active.map(s=>({ user:s.UserName, title:s.NowPlayingItem.Name, device:s.DeviceName, isPaused:s.PlayState.IsPaused, progress: Math.round((s.PlayState.PositionTicks||0)/(s.NowPlayingItem.RunTimeTicks||1)*100) })),
+      libraries: (libraries||[]).map(l=>({ name:l.Name, type:l.CollectionType, paths:l.Locations })),
+      deviceCount: devices && devices.TotalRecordCount,
+      plugins: (plugins.Items||[]).map(p=>({ name:p.Name, version:p.Version })),
+      recentActivity: (activity.Items||[]).slice(0,10).map(a=>({ name:a.Name, date:a.Date, severity:a.Severity, overview:a.Overview })),
+    };
+  }
+
+  // System stats
+  if (pathname === '/api/system-stats') {
+    const fs = require('fs');
+    const stats = {};
+    try {
+      const cpu1 = fs.readFileSync('/proc/stat','utf8').split('\n')[0].split(' ').slice(1).map(Number);
+      await new Promise(r=>setTimeout(r,200));
+      const cpu2 = fs.readFileSync('/proc/stat','utf8').split('\n')[0].split(' ').slice(1).map(Number);
+      stats.cpuPercent = Math.round((1-(cpu2[3]-cpu1[3])/(cpu2.reduce((a,b)=>a+b,0)-cpu1.reduce((a,b)=>a+b,0)))*100);
+      const mem = fs.readFileSync('/proc/meminfo','utf8');
+      const memTotal = parseInt(mem.match(/MemTotal:\s+(\d+)/)[1]);
+      const memAvail = parseInt(mem.match(/MemAvailable:\s+(\d+)/)[1]);
+      stats.ramTotal = Math.round(memTotal/1024); stats.ramUsed = Math.round((memTotal-memAvail)/1024); stats.ramPercent = Math.round((memTotal-memAvail)/memTotal*100);
+      try { const {execSync}=require('child_process'); const df=execSync('df -h / 2>/dev/null',{encoding:'utf8'}); const lines=df.trim().split('\n').slice(1); stats.disks=lines.map(l=>{const p=l.trim().split(/\s+/);return{fs:p[0],size:p[1],used:p[2],avail:p[3],percent:p[4],mount:p[5]};}).filter(d=>d.mount); } catch(e){stats.disks=[];}
+      const load=fs.readFileSync('/proc/loadavg','utf8').split(' '); stats.load1=parseFloat(load[0]); stats.load5=parseFloat(load[1]); stats.load15=parseFloat(load[2]);
+      stats.uptimeSeconds=Math.floor(parseFloat(fs.readFileSync('/proc/uptime','utf8').split(' ')[0]));
+      try { const ci=fs.readFileSync('/proc/cpuinfo','utf8'); const m=ci.match(/model name\s*:\s*(.+)/); const c=ci.match(/processor\s*:/g); stats.cpuModel=m?m[1].trim():'Unknown'; stats.cpuCores=c?c.length:1; } catch(e){}
+      try { const net=fs.readFileSync('/proc/net/dev','utf8'); stats.network=net.trim().split('\n').slice(2).map(l=>{const p=l.trim().split(/\s+/);return{iface:p[0].replace(':',''),rxBytes:parseInt(p[1]),txBytes:parseInt(p[9])};}).filter(n=>n.iface!=='lo'); } catch(e){stats.network=[];}
+    } catch(e){stats.error=e.message;}
+    return stats;
+  }
+
+  return null;
+}
+
+module.exports = { handleApi, mapItem, dedup };

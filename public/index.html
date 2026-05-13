@@ -1,0 +1,412 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="cinema">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>CyanFin</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Cormorant+Garamond:ital,wght@0,300;0,400;1,400&family=Montserrat:wght@300;400;600;700&family=Inter:wght@300;400;600;700&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="/css/base.css" />
+</head>
+<body>
+<div id="app">
+
+  <!-- Login -->
+  <div class="view active" id="view-login">
+    <div class="login-card">
+      <div class="login-logo">CyanFin</div>
+      <div class="login-sub">Jellyfin Home Theater</div>
+      <div class="login-field">
+        <label>Username</label>
+        <input id="login-user" type="text" autocomplete="username" placeholder="Enter username" />
+      </div>
+      <div class="login-field">
+        <label>Password</label>
+        <input id="login-pass" type="password" autocomplete="current-password" placeholder="Enter password" />
+      </div>
+      <button class="login-btn" id="login-btn">Sign In</button>
+      <div class="login-error" id="login-error"></div>
+    </div>
+  </div>
+
+  <!-- Nav -->
+  <nav id="nav" class="hidden">
+    <div class="nav-logo">CyanFin</div>
+    <div class="nav-links">
+      <button class="nav-link active" data-view="home">Home</button>
+      <button class="nav-link" data-view="movies">Movies</button>
+      <button class="nav-link" data-view="shows">TV Shows</button>
+      <button class="nav-link" data-view="music">Music</button>
+      <button class="nav-link" data-view="library">Library</button>
+      <button class="nav-link" data-view="health">Health</button>
+    </div>
+    <div class="nav-right">
+      <span id="nav-user"></span>
+      <button class="nav-icon-btn" id="search-btn" title="Search">🔍</button>
+      <button class="nav-icon-btn" id="settings-btn" title="Settings">⚙</button>
+    </div>
+  </nav>
+
+  <!-- Home -->
+  <div class="view" id="view-home">
+    <div class="home-hero">
+      <div class="home-hero-bg" id="hero-bg"></div>
+      <div class="home-hero-content">
+        <div class="home-hero-label" id="hero-label">Now Playing</div>
+        <div class="home-hero-title" id="hero-title">—</div>
+        <div class="home-hero-meta" id="hero-meta"></div>
+      </div>
+    </div>
+    <div class="home-content" id="home-content">
+      <div class="stats-strip" id="stats-strip">
+        <div class="stat-item"><div class="stat-num" id="stat-movies">—</div><div class="stat-label">Movies</div></div>
+        <div class="stat-item"><div class="stat-num" id="stat-shows">—</div><div class="stat-label">Shows</div></div>
+        <div class="stat-item"><div class="stat-num" id="stat-episodes">—</div><div class="stat-label">Episodes</div></div>
+        <div class="stat-item"><div class="stat-num" id="stat-songs">—</div><div class="stat-label">Songs</div></div>
+        <div class="weather-pill" id="weather-pill" style="display:none">
+          <span id="weather-icon"></span>
+          <span id="weather-temp"></span>
+          <span id="weather-desc"></span>
+        </div>
+      </div>
+      <div id="home-sections"></div>
+    </div>
+  </div>
+
+  <!-- Now Playing display -->
+  <div class="view" id="view-playing">
+    <div id="playing-backdrop"></div>
+    <div id="playing-film-grain"></div>
+    <div id="playing-paused-overlay"><div id="playing-paused-icon">⏸</div></div>
+    <div id="playing-users"></div>
+    <div id="playing-qr"><canvas id="playing-qr-canvas" width="56" height="56"></canvas><div class="qr-label">Trailer</div></div>
+    <div id="playing-poster-wrap"><img id="playing-poster" src="" alt="" /></div>
+    <div id="playing-text">
+      <div id="playing-badges"></div>
+      <div id="playing-title"></div>
+      <div id="playing-meta"></div>
+      <div id="playing-progress"><div id="playing-fill"></div></div>
+      <div id="playing-times"><span id="playing-current">0:00</span><span>/</span><span id="playing-total">0:00</span></div>
+    </div>
+    <div id="playing-next">
+      <div class="next-label">Up Next</div>
+      <img id="playing-next-poster" src="" alt="" />
+      <div class="next-title" id="playing-next-title"></div>
+      <div class="next-sub" id="playing-next-sub"></div>
+    </div>
+  </div>
+
+  <!-- Video Player -->
+  <div class="view" id="view-player">
+    <video id="player-video" playsinline></video>
+    <div id="player-spinner"><div class="spinner"></div></div>
+    <div id="player-controls">
+      <div id="player-progress-wrap">
+        <div id="player-progress">
+          <div id="player-progress-fill"></div>
+          <div id="player-progress-thumb"></div>
+        </div>
+      </div>
+      <div id="player-btns">
+        <button class="player-btn" id="player-back-btn" title="Back">←</button>
+        <button class="player-btn" id="player-prev-btn" title="Previous">⏮</button>
+        <button class="player-btn" id="player-play-btn" title="Play/Pause">⏸</button>
+        <button class="player-btn" id="player-next-btn" title="Next">⏭</button>
+        <span id="player-time">0:00 / 0:00</span>
+        <div id="player-vol-wrap">
+          <button class="player-btn" id="player-mute-btn">🔊</button>
+          <div id="player-vol"><div id="player-vol-fill" style="width:100%"></div></div>
+        </div>
+        <span id="player-title"></span>
+        <button class="player-btn" id="player-sub-btn" title="Subtitles">CC</button>
+        <button class="player-btn" id="player-pip-btn" title="Picture in Picture">⧉</button>
+        <button class="player-btn" id="player-fs-btn" title="Fullscreen">⛶</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Movies -->
+  <div class="view" id="view-movies">
+    <div class="view-header">
+      <div>
+        <div class="view-title">Movies</div>
+        <div class="view-count" id="movies-count"></div>
+      </div>
+    </div>
+    <div class="filter-bar">
+      <select class="filter-select" id="movies-sort">
+        <option value="SortName">A–Z</option>
+        <option value="PremiereDate">Year</option>
+        <option value="CommunityRating">Rating</option>
+        <option value="DateCreated">Date Added</option>
+        <option value="PlayCount">Most Played</option>
+      </select>
+      <select class="filter-select" id="movies-order">
+        <option value="Ascending">↑ Asc</option>
+        <option value="Descending">↓ Desc</option>
+      </select>
+      <select class="filter-select" id="movies-genre"><option value="">All Genres</option></select>
+    </div>
+    <div class="card-grid" id="movies-grid"></div>
+    <div style="text-align:center;padding:20px"><button class="qa-btn" id="movies-more" style="display:none">Load More</button></div>
+  </div>
+
+  <!-- TV Shows -->
+  <div class="view" id="view-shows">
+    <div class="view-header">
+      <div>
+        <div class="view-title">TV Shows</div>
+        <div class="view-count" id="shows-count"></div>
+      </div>
+    </div>
+    <div class="filter-bar">
+      <select class="filter-select" id="shows-sort">
+        <option value="SortName">A–Z</option>
+        <option value="PremiereDate">Year</option>
+        <option value="CommunityRating">Rating</option>
+        <option value="DateCreated">Date Added</option>
+      </select>
+      <select class="filter-select" id="shows-order">
+        <option value="Ascending">↑ Asc</option>
+        <option value="Descending">↓ Desc</option>
+      </select>
+      <select class="filter-select" id="shows-genre"><option value="">All Genres</option></select>
+    </div>
+    <div class="card-grid" id="shows-grid"></div>
+    <div style="text-align:center;padding:20px"><button class="qa-btn" id="shows-more" style="display:none">Load More</button></div>
+  </div>
+
+  <!-- Music -->
+  <div class="view" id="view-music">
+    <div class="view-header"><div class="view-title">Music</div></div>
+    <div id="music-content" style="padding:0 32px 32px"></div>
+  </div>
+
+  <!-- Library Tools -->
+  <div class="view" id="view-library">
+    <div class="view-header" style="padding-bottom:0"><div class="view-title">Library Tools</div></div>
+    <div class="lib-layout">
+      <div class="lib-sidebar" id="lib-sidebar">
+        <div class="lib-nav-item active" data-section="overview">📊 Overview</div>
+        <div class="lib-nav-item" data-section="quality">🎬 Quality</div>
+        <div class="lib-nav-item" data-section="missing">❌ Missing</div>
+        <div class="lib-nav-item" data-section="versions">📀 Versions</div>
+        <div class="lib-nav-item" data-section="music">🎵 Music</div>
+        <div class="lib-nav-item" data-section="actions">⚡ Actions</div>
+        <div class="lib-nav-item" data-section="thresholds">⚙ Thresholds</div>
+      </div>
+      <div class="lib-content" id="lib-content">
+
+        <div class="lib-section active" id="ls-overview">
+          <div class="lib-section-title">Overview</div>
+          <div class="lib-section-sub">Library health at a glance</div>
+          <div class="h-grid" id="lib-overview-grid" style="padding:0 0 16px"></div>
+        </div>
+
+        <div class="lib-section" id="ls-quality">
+          <div class="lib-section-title">Quality Issues</div>
+          <div class="lib-section-sub">Movies with poor video or audio quality</div>
+          <div class="lib-subsection"><div class="lib-subsection-title">SD / Low Quality <span id="cnt-sd" class="lib-badge lib-badge-bad" style="padding:1px 5px;border-radius:8px"></span></div><div class="lib-list" id="ll-sd"></div></div>
+          <div class="lib-subsection"><div class="lib-subsection-title">Upgrade Candidates <span id="cnt-upgrade"></span></div><div class="lib-list" id="ll-upgrade"></div></div>
+          <div class="lib-subsection"><div class="lib-subsection-title">Poor Audio <span id="cnt-audio"></span></div><div class="lib-list" id="ll-audio"></div></div>
+          <div class="lib-subsection"><div class="lib-subsection-title">No Streams Detected <span id="cnt-nostream"></span></div><div class="lib-list" id="ll-nostream"></div></div>
+        </div>
+
+        <div class="lib-section" id="ls-missing">
+          <div class="lib-section-title">Missing Content</div>
+          <div class="lib-section-sub">Items missing images or metadata</div>
+          <div class="lib-subsection"><div class="lib-subsection-title">Missing Poster <span id="cnt-noposter"></span></div><div class="lib-list" id="ll-noposter"></div></div>
+          <div class="lib-subsection"><div class="lib-subsection-title">Missing Backdrop <span id="cnt-nobackdrop"></span></div><div class="lib-list" id="ll-nobackdrop"></div></div>
+          <div class="lib-subsection"><div class="lib-subsection-title">Missing Overview <span id="cnt-nooverview"></span></div><div class="lib-list" id="ll-nooverview"></div></div>
+        </div>
+
+        <div class="lib-section" id="ls-versions">
+          <div class="lib-section-title">Versions & 3D</div>
+          <div class="lib-section-sub">Multi-version movies and 3D library</div>
+          <div class="lib-subsection"><div class="lib-subsection-title">Multiple Versions <span id="cnt-multi"></span></div><div class="lib-list" id="ll-multi"></div></div>
+          <div class="lib-subsection"><div class="lib-subsection-title">3D Library <span id="cnt-3d"></span></div><div class="lib-list" id="ll-3d"></div></div>
+          <div class="lib-subsection"><div class="lib-subsection-title">2D Only (sample) <span id="cnt-2d"></span></div><div class="lib-list" id="ll-2d"></div></div>
+        </div>
+
+        <div class="lib-section" id="ls-music">
+          <div class="lib-section-title">Music Library</div>
+          <div class="h-grid" id="lib-music-grid" style="padding:0 0 16px"></div>
+          <div class="lib-subsection"><div class="lib-subsection-title">Missing Artwork <span id="cnt-noart"></span></div><div class="lib-list" id="ll-noart"></div></div>
+        </div>
+
+        <div class="lib-section" id="ls-actions">
+          <div class="lib-section-title">Quick Actions</div>
+          <div class="lib-section-sub">Trigger Jellyfin maintenance tasks</div>
+          <div class="qa-row">
+            <button class="qa-btn" id="qa-scan">🔍 Scan Libraries</button>
+            <button class="qa-btn" id="qa-refresh-all">🔄 Refresh All Metadata</button>
+            <button class="qa-btn" id="qa-fix-images">🖼 Fix Missing Images</button>
+            <button class="qa-btn" id="qa-full-scan">▶ Full Scan Report</button>
+          </div>
+          <div id="lib-log"></div>
+        </div>
+
+        <div class="lib-section" id="ls-thresholds">
+          <div class="lib-section-title">Quality Thresholds</div>
+          <div class="lib-section-sub">Configure what counts as poor quality</div>
+          <div class="h-card" style="max-width:340px;margin-top:8px">
+            <div class="h-card-title">Video</div>
+            <div class="settings-row"><span class="settings-label">Flag as SD if below:</span><select class="filter-select" id="th-sd"><option value="1080p">1080p</option><option value="720p" selected>720p</option><option value="480p">480p</option></select></div>
+            <div class="settings-row"><span class="settings-label">Upgrade candidate if below:</span><select class="filter-select" id="th-upgrade"><option value="4K">4K</option><option value="1080p" selected>1080p</option><option value="720p">720p</option></select></div>
+            <div class="settings-row" style="margin-top:14px"><span class="settings-label">Audio — flag if below:</span><select class="filter-select" id="th-audio"><option value="Atmos">Atmos</option><option value="DTS">DTS</option><option value="DD" selected>DD</option><option value="AAC">AAC</option></select></div>
+            <button class="qa-btn" id="th-save" style="margin-top:12px">Save & Rescan</button>
+          </div>
+        </div>
+
+      </div>
+    </div>
+  </div>
+
+  <!-- Health -->
+  <div class="view" id="view-health">
+    <div class="view-header" style="padding-bottom:8px">
+      <div class="view-title">Server Health</div>
+      <button class="qa-btn" id="health-refresh" style="margin-left:auto">↻ Refresh</button>
+    </div>
+    <div class="h-grid" id="health-grid"></div>
+    <div style="padding:0 32px 8px;font-size:8px;font-weight:700;letter-spacing:0.3em;text-transform:uppercase;color:var(--accent);opacity:0.4">Activity Log</div>
+    <div id="health-activity" style="padding:0 32px 32px;display:flex;flex-direction:column;gap:5px"></div>
+  </div>
+
+  <!-- Search overlay -->
+  <div id="search-overlay">
+    <div id="search-input-wrap">
+      <span class="search-icon">🔍</span>
+      <input id="search-input" type="text" placeholder="Search movies, shows, music…" autocomplete="off" />
+    </div>
+    <div id="search-results"></div>
+  </div>
+
+  <!-- Detail modal -->
+  <div id="detail-modal">
+    <div id="detail-card">
+      <div id="detail-poster-wrap">
+        <img id="detail-poster" src="" alt="" />
+        <button class="detail-close" id="detail-close">✕</button>
+      </div>
+      <div id="detail-body">
+        <div class="detail-type" id="detail-type"></div>
+        <div class="detail-title" id="detail-title"></div>
+        <div class="detail-tagline" id="detail-tagline"></div>
+        <div class="detail-chips" id="detail-chips"></div>
+        <div class="detail-overview" id="detail-overview"></div>
+        <div class="detail-section-label" id="detail-cast-label">Cast</div>
+        <div class="cast-grid" id="detail-cast"></div>
+        <div class="detail-crew" id="detail-crew"></div>
+        <div class="detail-trailer" id="detail-trailer">
+          <canvas id="detail-qr" width="52" height="52"></canvas>
+          <div class="detail-trailer-text">Scan to watch trailer</div>
+        </div>
+        <div class="detail-actions">
+          <button class="action-btn action-btn-primary" id="detail-play-btn" style="display:none">▶ Play</button>
+          <button class="action-btn action-btn-secondary" id="detail-edit-btn">✏ Edit</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Settings panel -->
+  <div id="settings-panel">
+    <div class="settings-head">
+      <div class="settings-title">Settings</div>
+      <button class="settings-close" id="settings-close">✕</button>
+    </div>
+    <div class="settings-section">
+      <div class="settings-section-title">Theme</div>
+      <div class="theme-grid">
+        <div class="theme-swatch active" data-theme="cinema" title="Cinema"></div>
+        <div class="theme-swatch" data-theme="midnight" title="Midnight"></div>
+        <div class="theme-swatch" data-theme="ember" title="Ember"></div>
+        <div class="theme-swatch" data-theme="arctic" title="Arctic"></div>
+        <div class="theme-swatch" data-theme="neon" title="Neon"></div>
+      </div>
+    </div>
+    <div class="settings-section">
+      <div class="settings-section-title">Display</div>
+      <div class="settings-row"><span class="settings-label">Weather city</span><input class="settings-input" id="s-city" type="text" placeholder="Brisbane" /></div>
+      <div class="settings-row"><span class="settings-label">Temperature</span>
+        <select class="settings-input" id="s-units" style="width:80px">
+          <option value="C">°C</option><option value="F">°F</option>
+        </select>
+      </div>
+      <div class="settings-row"><span class="settings-label">Screensaver delay</span><input class="settings-input" id="s-ssdelay" type="number" min="30" max="3600" placeholder="300" /></div>
+      <div class="settings-row"><span class="settings-label">12-hour clock</span><div class="settings-toggle" id="s-12hr"></div></div>
+    </div>
+    <div class="settings-section">
+      <div class="settings-section-title">Features</div>
+      <div class="settings-row"><span class="settings-label">Show weather</span><div class="settings-toggle on" id="s-weather"></div></div>
+      <div class="settings-row"><span class="settings-label">Trailer QR codes</span><div class="settings-toggle on" id="s-trailer"></div></div>
+      <div class="settings-row"><span class="settings-label">Screensaver</span><div class="settings-toggle on" id="s-ss"></div></div>
+      <div class="settings-row"><span class="settings-label">Sounds</span><div class="settings-toggle on" id="s-sounds"></div></div>
+    </div>
+    <div class="settings-section">
+      <div class="settings-section-title">Account</div>
+      <div class="settings-row"><span class="settings-label" id="s-username"></span><button class="back-btn" id="s-logout">Sign out</button></div>
+    </div>
+  </div>
+
+  <!-- Metadata editor -->
+  <div id="meta-editor">
+    <div id="meta-editor-card">
+      <div class="meta-head">
+        <div class="meta-title">Edit Metadata</div>
+        <button class="meta-close" id="meta-close">✕</button>
+      </div>
+      <div class="meta-body">
+        <div class="meta-field"><label>Title</label><input id="me-title" type="text" /></div>
+        <div class="meta-field"><label>Year</label><input id="me-year" type="number" /></div>
+        <div class="meta-field"><label>Overview</label><textarea id="me-overview"></textarea></div>
+        <div class="meta-field"><label>Tagline</label><input id="me-tagline" type="text" /></div>
+        <div class="meta-field"><label>Rating</label><input id="me-rating" type="text" placeholder="AU-M, PG-13…" /></div>
+        <div class="meta-field"><label>Genres (comma separated)</label><input id="me-genres" type="text" /></div>
+        <div class="ai-suggestions" id="ai-suggestions">
+          <div class="ai-sugg-label">🤖 AI Suggestions</div>
+          <div id="ai-overview-wrap" style="display:none">
+            <div class="ai-sugg-label" style="color:var(--muted)">Overview</div>
+            <div class="ai-sugg-text" id="ai-overview-text"></div>
+            <button class="ai-apply" id="ai-apply-overview">Apply</button>
+          </div>
+          <div id="ai-tagline-wrap" style="display:none;margin-top:10px">
+            <div class="ai-sugg-label" style="color:var(--muted)">Tagline</div>
+            <div class="ai-sugg-text" id="ai-tagline-text"></div>
+            <button class="ai-apply" id="ai-apply-tagline">Apply</button>
+          </div>
+          <div id="ai-issues"></div>
+        </div>
+      </div>
+      <div class="meta-status" id="meta-status"></div>
+      <div class="meta-foot">
+        <button class="meta-btn meta-btn-scrape" id="meta-rescrape">↻ Re-scrape</button>
+        <button class="meta-btn meta-btn-ai" id="meta-ai">🤖 AI Fix</button>
+        <button class="meta-btn meta-btn-save" id="meta-save">Save</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Screensaver -->
+  <div id="screensaver">
+    <div id="ss-bg"></div>
+    <div id="ss-overlay"></div>
+    <div id="ss-content">
+      <div id="ss-title"></div>
+      <div id="ss-meta"></div>
+      <div id="ss-overview"></div>
+    </div>
+    <div id="ss-bar-wrap"><div id="ss-bar"></div></div>
+  </div>
+
+  <!-- Toast container -->
+  <div id="toast-container"></div>
+
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+<script src="/js/app.js" type="module"></script>
+</body>
+</html>
