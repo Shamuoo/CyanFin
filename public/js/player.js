@@ -1,10 +1,10 @@
-// Video player
+// CyanFin Video Player
 import { playSound } from './themes.js';
 
 let currentItem = null;
 let controlsTimer = null;
 let isDragging = false;
-let qrInstance = null;
+let hlsInstance = null;
 
 const video = document.getElementById('player-video');
 const playBtn = document.getElementById('player-play-btn');
@@ -25,14 +25,12 @@ function fmtTime(secs) {
   return `${m}:${String(s).padStart(2,'0')}`;
 }
 
-function fmtTicks(ticks) { return fmtTime((ticks || 0) / 10000000); }
-
-function showControls() {
+export function showControls() {
   view.classList.add('controls-visible');
   clearTimeout(controlsTimer);
-  controlsTimer = setTimeout(() => {
-    if (!video.paused) view.classList.remove('controls-visible');
-  }, 3000);
+  if (!video.paused) {
+    controlsTimer = setTimeout(() => view.classList.remove('controls-visible'), 3500);
+  }
 }
 
 function updateProgress() {
@@ -43,37 +41,51 @@ function updateProgress() {
 }
 
 export function initPlayer() {
-  // Controls visibility
+  // Always show controls on any interaction
   view.addEventListener('mousemove', showControls);
-  view.addEventListener('touchstart', showControls);
+  view.addEventListener('touchstart', showControls, { passive: true });
+  view.addEventListener('click', showControls);
 
-  // Play/pause
-  video.addEventListener('play', () => { playBtn.textContent = '⏸'; });
-  video.addEventListener('pause', () => { playBtn.textContent = '▶'; view.classList.add('controls-visible'); });
+  // Video events
+  video.addEventListener('play', () => { playBtn.textContent = '⏸'; showControls(); });
+  video.addEventListener('pause', () => { playBtn.textContent = '▶'; view.classList.add('controls-visible'); clearTimeout(controlsTimer); });
   video.addEventListener('waiting', () => spinner.classList.add('loading'));
+  video.addEventListener('canplay', () => spinner.classList.remove('loading'));
   video.addEventListener('playing', () => spinner.classList.remove('loading'));
   video.addEventListener('timeupdate', updateProgress);
-
   video.addEventListener('ended', () => {
-    // Report progress to Jellyfin
     if (currentItem) reportProgress(currentItem.id, video.duration * 10000000, true);
     window.dispatchEvent(new CustomEvent('player:ended', { detail: { item: currentItem } }));
   });
 
-  playBtn.addEventListener('click', () => {
+  // Play/pause toggle
+  playBtn.addEventListener('click', (e) => {
+    e.stopPropagation();
     if (video.paused) video.play();
     else video.pause();
     playSound('click');
   });
 
-  // Progress bar scrubbing
-  progressBar.addEventListener('mousedown', (e) => {
-    isDragging = true;
-    scrub(e);
+  // Click center of video to play/pause
+  video.addEventListener('click', () => {
+    if (video.paused) video.play();
+    else video.pause();
   });
+
+  // Progress bar scrubbing
+  progressBar.addEventListener('mousedown', (e) => { isDragging = true; scrub(e); e.stopPropagation(); });
+  progressBar.addEventListener('touchstart', (e) => { isDragging = true; scrub(e.touches[0]); e.stopPropagation(); }, { passive: true });
   document.addEventListener('mousemove', (e) => { if (isDragging) scrub(e); });
+  document.addEventListener('touchmove', (e) => { if (isDragging) scrub(e.touches[0]); }, { passive: true });
   document.addEventListener('mouseup', () => {
-    if (isDragging) { isDragging = false; video.currentTime = video.duration * (parseFloat(progressFill.style.width) / 100); }
+    if (!isDragging) return;
+    isDragging = false;
+    if (video.duration) video.currentTime = video.duration * (parseFloat(progressFill.style.width) / 100);
+  });
+  document.addEventListener('touchend', () => {
+    if (!isDragging) return;
+    isDragging = false;
+    if (video.duration) video.currentTime = video.duration * (parseFloat(progressFill.style.width) / 100);
   });
 
   function scrub(e) {
@@ -84,12 +96,15 @@ export function initPlayer() {
   }
 
   // Volume
-  document.getElementById('player-mute-btn').addEventListener('click', () => {
+  const muteBtn = document.getElementById('player-mute-btn');
+  muteBtn.addEventListener('click', (e) => {
+    e.stopPropagation();
     video.muted = !video.muted;
-    document.getElementById('player-mute-btn').textContent = video.muted ? '🔇' : '🔊';
+    muteBtn.textContent = video.muted ? '🔇' : '🔊';
     playSound('click');
   });
   document.getElementById('player-vol').addEventListener('click', (e) => {
+    e.stopPropagation();
     const rect = e.currentTarget.getBoundingClientRect();
     const pct = Math.max(0, Math.min(1, (e.clientX - rect.left) / rect.width));
     video.volume = pct;
@@ -97,14 +112,16 @@ export function initPlayer() {
   });
 
   // Fullscreen
-  document.getElementById('player-fs-btn').addEventListener('click', () => {
-    if (!document.fullscreenElement) view.requestFullscreen();
+  document.getElementById('player-fs-btn').addEventListener('click', (e) => {
+    e.stopPropagation();
+    if (!document.fullscreenElement) view.requestFullscreen().catch(() => {});
     else document.exitFullscreen();
     playSound('click');
   });
 
-  // Picture in Picture
-  document.getElementById('player-pip-btn').addEventListener('click', async () => {
+  // PiP
+  document.getElementById('player-pip-btn').addEventListener('click', async (e) => {
+    e.stopPropagation();
     try {
       if (document.pictureInPictureElement) await document.exitPictureInPicture();
       else await video.requestPictureInPicture();
@@ -112,30 +129,29 @@ export function initPlayer() {
     playSound('click');
   });
 
-  // Back button
-  document.getElementById('player-back-btn').addEventListener('click', () => {
-    stopPlayer();
-    window.dispatchEvent(new CustomEvent('navigate', { detail: { view: 'home' } }));
-    playSound('click');
+  // Back button — always visible, exits player
+  document.getElementById('player-back-btn').addEventListener('click', (e) => {
+    e.stopPropagation();
+    exitPlayer();
   });
 
-  // Keyboard shortcuts
+  // Keyboard shortcuts — only when player is active
   document.addEventListener('keydown', (e) => {
-    const activeView = document.querySelector('.view.active');
-    if (!activeView || activeView.id !== 'view-player') return;
+    if (document.getElementById('view-player').style.display === 'none') return;
+    if (!document.getElementById('view-player').classList.contains('active')) return;
     switch(e.key) {
-      case ' ': case 'k': e.preventDefault(); if (video.paused) video.play(); else video.pause(); break;
+      case ' ': case 'k': e.preventDefault(); if (video.paused) video.play(); else video.pause(); showControls(); break;
       case 'ArrowLeft': e.preventDefault(); video.currentTime = Math.max(0, video.currentTime - 10); showControls(); break;
-      case 'ArrowRight': e.preventDefault(); video.currentTime = Math.min(video.duration, video.currentTime + 10); showControls(); break;
-      case 'ArrowUp': e.preventDefault(); video.volume = Math.min(1, video.volume + 0.1); break;
-      case 'ArrowDown': e.preventDefault(); video.volume = Math.max(0, video.volume - 0.1); break;
-      case 'f': case 'F': if (!document.fullscreenElement) view.requestFullscreen(); else document.exitFullscreen(); break;
-      case 'Escape': stopPlayer(); window.dispatchEvent(new CustomEvent('navigate', { detail: { view: 'home' } })); break;
-      case 'm': case 'M': video.muted = !video.muted; break;
+      case 'ArrowRight': e.preventDefault(); video.currentTime = Math.min(video.duration || 0, video.currentTime + 10); showControls(); break;
+      case 'ArrowUp': e.preventDefault(); video.volume = Math.min(1, video.volume + 0.1); volFill.style.width = `${video.volume * 100}%`; showControls(); break;
+      case 'ArrowDown': e.preventDefault(); video.volume = Math.max(0, video.volume - 0.1); volFill.style.width = `${video.volume * 100}%`; showControls(); break;
+      case 'f': case 'F': if (!document.fullscreenElement) view.requestFullscreen().catch(()=>{}); else document.exitFullscreen(); break;
+      case 'm': case 'M': video.muted = !video.muted; document.getElementById('player-mute-btn').textContent = video.muted ? '🔇' : '🔊'; break;
+      case 'Escape': exitPlayer(); break;
     }
   });
 
-  // Progress reporting interval
+  // Progress reporting every 10s
   setInterval(() => {
     if (!video.paused && currentItem && video.currentTime > 0) {
       reportProgress(currentItem.id, video.currentTime * 10000000, false);
@@ -143,77 +159,115 @@ export function initPlayer() {
   }, 10000);
 }
 
+function exitPlayer() {
+  stopPlayer();
+  window.dispatchEvent(new CustomEvent('navigate', { detail: { view: 'home' } }));
+  playSound('click');
+}
+
 async function reportProgress(itemId, positionTicks, stopped) {
   try {
-    if (stopped) await fetch(`/api/items/${itemId}/playbackstopped`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ ItemId: itemId, PositionTicks: positionTicks }) });
+    const endpoint = stopped ? 'playbackstopped' : 'playbackprogress';
+    await fetch(`/api/items/${itemId}/${endpoint}`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ ItemId: itemId, PositionTicks: Math.round(positionTicks) }),
+    });
   } catch(e) {}
 }
 
-let hlsInstance = null;
-
 export function playItem(item) {
   currentItem = item;
-  titleEl.textContent = item.title || '';
+  if (titleEl) titleEl.textContent = item.title || '';
 
-  // Destroy previous HLS instance
+  // Destroy previous HLS
   if (hlsInstance) { hlsInstance.destroy(); hlsInstance = null; }
   video.src = '';
+  spinner.classList.add('loading');
 
-  const startTime = item.userData && item.userData.PlaybackPositionTicks > 0
+  const startTime = (item.userData && item.userData.PlaybackPositionTicks > 60 * 10000000)
     ? item.userData.PlaybackPositionTicks / 10000000 : 0;
 
-  const hlsUrl = `/proxy/stream?id=${item.id}`;
+  // Build direct Jellyfin stream URL using token stored in sessionStorage
+  const user = JSON.parse(sessionStorage.getItem('cf_user') || 'null');
 
-  const tryHLS = () => {
-    if (window.Hls && window.Hls.isSupported()) {
-      hlsInstance = new window.Hls({
-        maxBufferLength: 30,
-        maxMaxBufferLength: 60,
-        startFragPrefetch: true,
-      });
-      hlsInstance.loadSource(hlsUrl);
-      hlsInstance.attachMedia(video);
-      hlsInstance.on(window.Hls.Events.MANIFEST_PARSED, () => {
-        if (startTime > 0) video.currentTime = startTime;
-        video.play().catch(e => console.warn('Autoplay blocked:', e));
-      });
-      hlsInstance.on(window.Hls.Events.ERROR, (event, data) => {
-        if (data.fatal) {
-          console.warn('HLS fatal error, falling back to direct stream');
-          tryDirect();
-        }
-      });
-    } else if (video.canPlayType('application/vnd.apple.mpegurl')) {
-      // Native HLS (Safari)
-      video.src = hlsUrl;
-      if (startTime > 0) video.addEventListener('loadedmetadata', () => { video.currentTime = startTime; }, { once: true });
-      video.play().catch(e => console.warn('Autoplay:', e));
-    } else {
-      tryDirect();
-    }
-  };
+  // Use /proxy/stream which redirects to Jellyfin HLS URL
+  // HLS.js needs to follow the redirect itself with credentials
+  // So we ask server for the actual URL first
+  fetch(`/api/stream-url?id=${item.id}`)
+    .then(r => r.json())
+    .then(({ url }) => startPlayback(url, startTime))
+    .catch(() => {
+      // Fallback: try direct stream
+      startPlayback(`/proxy/stream?id=${item.id}`, startTime);
+    });
 
-  const tryDirect = () => {
-    // Fall back to direct stream (server transcodes on the fly)
-    const directUrl = hlsUrl.replace('/proxy/stream', '/proxy/direct');
-    video.src = directUrl;
-    if (startTime > 0) video.addEventListener('loadedmetadata', () => { video.currentTime = startTime; }, { once: true });
-    video.play().catch(e => console.warn('Autoplay:', e));
-  };
-
-  tryHLS();
   playSound('play');
   showControls();
 }
 
-export function stopPlayer() {
-  if (!video.paused) {
-    if (currentItem) reportProgress(currentItem.id, video.currentTime * 10000000, true);
-    video.pause();
+function startPlayback(streamUrl, startTime) {
+  if (window.Hls && window.Hls.isSupported()) {
+    hlsInstance = new window.Hls({
+      maxBufferLength: 30,
+      maxMaxBufferLength: 60,
+      startFragPrefetch: true,
+      debug: false,
+    });
+    hlsInstance.loadSource(streamUrl);
+    hlsInstance.attachMedia(video);
+    hlsInstance.on(window.Hls.Events.MANIFEST_PARSED, () => {
+      if (startTime > 0) video.currentTime = startTime;
+      video.play().catch(e => console.warn('Autoplay blocked:', e));
+      spinner.classList.remove('loading');
+    });
+    hlsInstance.on(window.Hls.Events.ERROR, (event, data) => {
+      console.warn('HLS error:', data.type, data.details);
+      if (data.fatal) {
+        spinner.classList.remove('loading');
+        if (data.type === window.Hls.ErrorTypes.NETWORK_ERROR) {
+          hlsInstance.startLoad();
+        } else {
+          showPlayerError('Stream error — try a different format');
+        }
+      }
+    });
+  } else if (video.canPlayType('application/vnd.apple.mpegurl')) {
+    // Native HLS (Safari/iOS)
+    video.src = streamUrl;
+    if (startTime > 0) video.addEventListener('loadedmetadata', () => { video.currentTime = startTime; }, { once: true });
+    video.play().catch(e => console.warn('Autoplay:', e));
+    spinner.classList.remove('loading');
+  } else {
+    showPlayerError('HLS not supported in this browser');
+    spinner.classList.remove('loading');
   }
+}
+
+function showPlayerError(msg) {
+  const el = document.getElementById('player-error');
+  if (el) { el.textContent = msg; el.style.display = 'block'; }
+  else {
+    const div = document.createElement('div');
+    div.id = 'player-error';
+    div.style.cssText = 'position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);color:#e74c3c;font-size:14px;text-align:center;padding:20px;background:rgba(0,0,0,0.8);border-radius:8px;z-index:10';
+    div.textContent = msg;
+    document.getElementById('view-player').appendChild(div);
+  }
+}
+
+export function stopPlayer() {
+  if (currentItem && !video.paused) {
+    reportProgress(currentItem.id, video.currentTime * 10000000, true);
+  }
+  video.pause();
   if (hlsInstance) { hlsInstance.destroy(); hlsInstance = null; }
   video.src = '';
+  spinner.classList.remove('loading');
+  view.classList.remove('controls-visible');
   currentItem = null;
+  const errEl = document.getElementById('player-error');
+  if (errEl) errEl.remove();
 }
 
 export function getCurrentItem() { return currentItem; }

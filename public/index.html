@@ -99,6 +99,7 @@
 
   <!-- Video Player -->
   <div class="view" id="view-player">
+    <button id="player-back" title="Back (Esc)">←</button>
     <video id="player-video" playsinline></video>
     <div id="player-spinner"><div class="spinner"></div></div>
     <div id="player-controls">
@@ -346,6 +347,22 @@
       <div class="settings-row"><span class="settings-label">Trailer QR codes</span><div class="settings-toggle on" id="s-trailer"></div></div>
       <div class="settings-row"><span class="settings-label">Screensaver</span><div class="settings-toggle on" id="s-ss"></div></div>
       <div class="settings-row"><span class="settings-label">Sounds</span><div class="settings-toggle on" id="s-sounds"></div></div>
+    </div>
+    <div class="settings-section">
+      <div class="settings-section-title">Interface Mode</div>
+      <div class="settings-row"><span class="settings-label">Mode</span>
+        <select class="settings-input" id="s-mode" style="width:100px">
+          <option value="advanced">Advanced</option>
+          <option value="simple">Simple</option>
+        </select>
+      </div>
+      <div class="settings-row"><span class="settings-label">Layout</span>
+        <select class="settings-input" id="s-layout" style="width:100px">
+          <option value="desktop">Desktop</option>
+          <option value="tv">TV</option>
+          <option value="mobile">Mobile</option>
+        </select>
+      </div>
     </div>
     <div class="settings-section">
       <div class="settings-section-title">Account</div>

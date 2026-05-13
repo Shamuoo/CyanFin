@@ -17,6 +17,17 @@ loadSettings();
 
 async function init() {
   initPlayer();
+
+  // Persistent player back button (always visible on hover/touch)
+  const playerBack = document.getElementById('player-back');
+  if (playerBack) {
+    playerBack.addEventListener('click', () => {
+      stopPlayer();
+      navigate('home');
+      playSound('click');
+    });
+  }
+
   initNav();
   initSearch();
   initSettings();
@@ -474,6 +485,46 @@ function initSettings() {
     playSound('click');
   });
   initSettingsPanel();
+  initLayoutMode();
+}
+
+function initLayoutMode() {
+  const modeSelect = document.getElementById('s-mode');
+  const layoutSelect = document.getElementById('s-layout');
+
+  // Restore saved values
+  const savedMode = localStorage.getItem('cf-mode') || 'advanced';
+  const savedLayout = localStorage.getItem('cf-layout') || 'desktop';
+  if (modeSelect) modeSelect.value = savedMode;
+  if (layoutSelect) layoutSelect.value = savedLayout;
+  applyLayoutMode(savedMode, savedLayout);
+
+  if (modeSelect) modeSelect.addEventListener('change', () => {
+    const mode = modeSelect.value;
+    const layout = layoutSelect ? layoutSelect.value : 'desktop';
+    localStorage.setItem('cf-mode', mode);
+    applyLayoutMode(mode, layout);
+    playSound('click');
+  });
+  if (layoutSelect) layoutSelect.addEventListener('change', () => {
+    const layout = layoutSelect.value;
+    const mode = modeSelect ? modeSelect.value : 'advanced';
+    localStorage.setItem('cf-layout', layout);
+    applyLayoutMode(mode, layout);
+    playSound('click');
+  });
+}
+
+function applyLayoutMode(mode, layout) {
+  const app = document.getElementById('app');
+  // Mode
+  app.setAttribute('data-mode', mode);
+  // Layout
+  if (layout === 'tv' || layout === 'mobile') {
+    app.setAttribute('data-layout', layout);
+  } else {
+    app.removeAttribute('data-layout');
+  }
 }
 
 // ── Movies ──

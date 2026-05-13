@@ -171,6 +171,15 @@ const server = http.createServer(async (req, res) => {
     return;
   }
 
+  // ── STREAM URL (returns actual Jellyfin URL for HLS.js) ──
+  if (pathname === '/api/stream-url') {
+    const session = auth.getSessionFromRequest(req);
+    if (!session) return json(res, { error: 'Unauthorized' }, 401);
+    const itemId = parsed.query.id;
+    if (!itemId) return json(res, { error: 'No id' }, 400);
+    return json(res, { url: jf.streamUrl(itemId, session.token) });
+  }
+
   // ── REQUIRE AUTH FOR API ──
   if (pathname.startsWith('/api/')) {
     const session = auth.getSessionFromRequest(req);
