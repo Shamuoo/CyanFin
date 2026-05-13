@@ -149,7 +149,18 @@ const server = http.createServer(async (req, res) => {
     return;
   }
 
-  // ── STREAM PROXY (pass-through) ──
+  // ── DIRECT STREAM PROXY (fallback) ──
+  if (pathname === '/proxy/direct') {
+    const session = auth.getSessionFromRequest(req);
+    if (!session) { res.writeHead(401); res.end(); return; }
+    const itemId = parsed.query.id;
+    const directUrl = jf.directUrl(itemId, session.token);
+    res.writeHead(302, { 'Location': directUrl });
+    res.end();
+    return;
+  }
+
+  // ── STREAM PROXY (HLS pass-through) ──
   if (pathname === '/proxy/stream') {
     const session = auth.getSessionFromRequest(req);
     if (!session) { res.writeHead(401); res.end(); return; }

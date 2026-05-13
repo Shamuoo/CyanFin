@@ -149,21 +149,59 @@ async function reportProgress(itemId, positionTicks, stopped) {
   } catch(e) {}
 }
 
+let hlsInstance = null;
+
 export function playItem(item) {
   currentItem = item;
-  const streamUrl = `/proxy/stream?id=${item.id}`;
-
-  video.src = streamUrl;
   titleEl.textContent = item.title || '';
 
-  // Resume from saved position
-  if (item.userData && item.userData.PlaybackPositionTicks > 0) {
-    video.addEventListener('loadedmetadata', () => {
-      video.currentTime = item.userData.PlaybackPositionTicks / 10000000;
-    }, { once: true });
-  }
+  // Destroy previous HLS instance
+  if (hlsInstance) { hlsInstance.destroy(); hlsInstance = null; }
+  video.src = '';
 
-  video.play().catch(e => console.warn('Autoplay:', e));
+  const startTime = item.userData && item.userData.PlaybackPositionTicks > 0
+    ? item.userData.PlaybackPositionTicks / 10000000 : 0;
+
+  const hlsUrl = `/proxy/stream?id=${item.id}`;
+
+  const tryHLS = () => {
+    if (window.Hls && window.Hls.isSupported()) {
+      hlsInstance = new window.Hls({
+        maxBufferLength: 30,
+        maxMaxBufferLength: 60,
+        startFragPrefetch: true,
+      });
+      hlsInstance.loadSource(hlsUrl);
+      hlsInstance.attachMedia(video);
+      hlsInstance.on(window.Hls.Events.MANIFEST_PARSED, () => {
+        if (startTime > 0) video.currentTime = startTime;
+        video.play().catch(e => console.warn('Autoplay blocked:', e));
+      });
+      hlsInstance.on(window.Hls.Events.ERROR, (event, data) => {
+        if (data.fatal) {
+          console.warn('HLS fatal error, falling back to direct stream');
+          tryDirect();
+        }
+      });
+    } else if (video.canPlayType('application/vnd.apple.mpegurl')) {
+      // Native HLS (Safari)
+      video.src = hlsUrl;
+      if (startTime > 0) video.addEventListener('loadedmetadata', () => { video.currentTime = startTime; }, { once: true });
+      video.play().catch(e => console.warn('Autoplay:', e));
+    } else {
+      tryDirect();
+    }
+  };
+
+  const tryDirect = () => {
+    // Fall back to direct stream (server transcodes on the fly)
+    const directUrl = hlsUrl.replace('/proxy/stream', '/proxy/direct');
+    video.src = directUrl;
+    if (startTime > 0) video.addEventListener('loadedmetadata', () => { video.currentTime = startTime; }, { once: true });
+    video.play().catch(e => console.warn('Autoplay:', e));
+  };
+
+  tryHLS();
   playSound('play');
   showControls();
 }
@@ -173,6 +211,7 @@ export function stopPlayer() {
     if (currentItem) reportProgress(currentItem.id, video.currentTime * 10000000, true);
     video.pause();
   }
+  if (hlsInstance) { hlsInstance.destroy(); hlsInstance = null; }
   video.src = '';
   currentItem = null;
 }

@@ -60,10 +60,10 @@
     </div>
     <div class="home-content" id="home-content">
       <div class="stats-strip" id="stats-strip">
-        <div class="stat-item"><div class="stat-num" id="stat-movies">—</div><div class="stat-label">Movies</div></div>
-        <div class="stat-item"><div class="stat-num" id="stat-shows">—</div><div class="stat-label">Shows</div></div>
-        <div class="stat-item"><div class="stat-num" id="stat-episodes">—</div><div class="stat-label">Episodes</div></div>
-        <div class="stat-item"><div class="stat-num" id="stat-songs">—</div><div class="stat-label">Songs</div></div>
+        <div class="stat-item"><div class="stat-num stat-movies" id="stat-movies">—</div><div class="stat-label">Movies</div></div>
+        <div class="stat-item"><div class="stat-num stat-shows" id="stat-shows">—</div><div class="stat-label">Shows</div></div>
+        <div class="stat-item"><div class="stat-num stat-episodes" id="stat-episodes">—</div><div class="stat-label">Episodes</div></div>
+        <div class="stat-item"><div class="stat-num stat-songs" id="stat-songs">—</div><div class="stat-label">Songs</div></div>
         <div class="weather-pill" id="weather-pill" style="display:none">
           <span id="weather-icon"></span>
           <span id="weather-temp"></span>
@@ -287,8 +287,10 @@
   <div id="detail-modal">
     <div id="detail-card">
       <div id="detail-poster-wrap">
+        <div id="detail-backdrop"></div>
         <img id="detail-poster" src="" alt="" />
         <button class="detail-close" id="detail-close">✕</button>
+        <button id="detail-fs-btn" title="Expand">⛶</button>
       </div>
       <div id="detail-body">
         <div class="detail-type" id="detail-type"></div>
@@ -407,6 +409,7 @@
 </div>
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/hls.js/1.4.12/hls.min.js"></script>
 <script src="/js/app.js" type="module"></script>
 </body>
 </html>

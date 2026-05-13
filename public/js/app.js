@@ -334,6 +334,16 @@ let detailQR = null;
 function initDetailModal() {
   document.getElementById('detail-close').addEventListener('click', closeDetail);
   document.getElementById('detail-modal').addEventListener('click', e => { if (e.target.id === 'detail-modal') closeDetail(); });
+  document.getElementById('detail-fs-btn').addEventListener('click', () => {
+    const modal = document.getElementById('detail-modal');
+    const isFs = modal.classList.toggle('fullscreen');
+    document.getElementById('detail-fs-btn').textContent = isFs ? '⊡' : '⛶';
+    if (isFs && window._detailItem) {
+      const backdrop = document.getElementById('detail-backdrop');
+      backdrop.style.backgroundImage = `url('${window._detailItem.backdropUrl || window._detailItem.posterUrl}')`;
+    }
+    playSound('click');
+  });
   document.addEventListener('keydown', e => { if (e.key === 'Escape') { closeDetail(); closeSearch(); document.getElementById('settings-panel').classList.remove('open'); } });
   document.getElementById('detail-play-btn').addEventListener('click', () => {
     if (!window._detailItem) return;
@@ -407,7 +417,9 @@ function mkActorPh(name) {
 }
 
 function closeDetail() {
-  document.getElementById('detail-modal').classList.remove('open');
+  const modal = document.getElementById('detail-modal');
+  modal.classList.remove('open', 'fullscreen');
+  document.getElementById('detail-fs-btn').textContent = '⛶';
   window._detailItem = null;
 }
 
