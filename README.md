@@ -1,10 +1,9 @@
 # CyanFin
 
-**The best Jellyfin frontend. Docker-hosted for speed and reliability.**
+THIS IS AN AI-GENERATED APP - EXPECT BUGS AND OTHER ISSUES - THIS WAS CREATED FOR PERSONAL USE
 
 CyanFin is a self-hosted web interface for [Jellyfin](https://jellyfin.org) media servers — built for home theater use. It runs as a lightweight Docker container alongside your Jellyfin instance and gives you a cinema-quality browsing and playback experience in any browser.
 
-![CyanFin Cinema Theme](https://raw.githubusercontent.com/Shamuoo/CyanFin/main/docs/screenshot.png)
 
 ---
 
