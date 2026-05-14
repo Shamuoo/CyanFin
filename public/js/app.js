@@ -16,6 +16,7 @@ let currentEditItem = null;
 loadSettings();
 
 async function init() {
+  initOnboarding();
   initPlayer();
 
   // Persistent player back button (always visible on hover/touch)
@@ -106,6 +107,58 @@ function navigate(viewName) {
   if (viewName === 'library') loadLibrary();
 }
 
+function initOnboarding() {
+  const ob = document.getElementById('onboarding');
+  if (!ob) return;
+  const seen = localStorage.getItem('cf-onboarded');
+  if (!seen) {
+    ob.style.display = 'block';
+    // Theme swatches in onboarding
+    ob.querySelectorAll('.theme-swatch').forEach(el => {
+      el.addEventListener('click', () => {
+        ob.querySelectorAll('.theme-swatch').forEach(s => s.classList.remove('active'));
+        el.classList.add('active');
+        applyTheme(el.dataset.theme);
+      });
+    });
+    // Layout buttons
+    ob.querySelectorAll('.ob-layout-btn').forEach(el => {
+      el.addEventListener('click', () => {
+        ob.querySelectorAll('.ob-layout-btn').forEach(b => {
+          b.style.border = '1px solid var(--border2)';
+          b.style.background = '';
+          b.querySelector('div:last-child').style.color = 'var(--muted)';
+        });
+        el.style.border = '1px solid var(--border)';
+        el.style.background = 'var(--subtle)';
+        el.querySelector('div:last-child').style.color = 'var(--accent)';
+        localStorage.setItem('cf-layout', el.dataset.layout);
+        applyLayoutMode(localStorage.getItem('cf-mode') || 'advanced', el.dataset.layout);
+      });
+    });
+    // Mode buttons
+    ob.querySelectorAll('.ob-mode-btn').forEach(el => {
+      el.addEventListener('click', () => {
+        ob.querySelectorAll('.ob-mode-btn').forEach(b => {
+          b.style.border = '1px solid var(--border2)';
+          b.style.background = '';
+          b.querySelector('div:first-child').style.color = 'var(--muted)';
+        });
+        el.style.border = '1px solid var(--border)';
+        el.style.background = 'var(--subtle)';
+        el.querySelector('div:first-child').style.color = 'var(--accent)';
+        localStorage.setItem('cf-mode', el.dataset.mode);
+        applyLayoutMode(el.dataset.mode, localStorage.getItem('cf-layout') || 'desktop');
+      });
+    });
+    // Done button
+    document.getElementById('ob-done').addEventListener('click', () => {
+      localStorage.setItem('cf-onboarded', '1');
+      ob.style.display = 'none';
+    });
+  }
+}
+
 function initNav() {
   document.querySelectorAll('.nav-link').forEach(btn => {
     btn.addEventListener('click', () => { navigate(btn.dataset.view); playSound('click'); });
@@ -166,6 +219,8 @@ async function renderHomeSections() {
     { key: 'random', label: '🎲 Feeling Lucky', fn: async () => { const r = await API.random(); return r ? [r] : []; } },
   ];
   container.innerHTML = '';
+  // Populate ticker with all items after sections load
+  let allTickerItems = [];
   for (const sec of sections) {
     const secEl = document.createElement('div'); secEl.className = 'section';
     secEl.innerHTML = `<div class="section-header"><div class="section-title">${sec.label}</div></div><div class="card-row" id="row-${sec.key}"></div>`;
@@ -175,12 +230,38 @@ async function renderHomeSections() {
       const row = document.getElementById(`row-${sec.key}`);
       if (!items || !items.length) { secEl.style.display = 'none'; continue; }
       items.forEach(item => row.appendChild(mkCard(item)));
+      allTickerItems.push(...items);
       if (sec.key === 'recent') {
         ssItems = items.filter(i => i.backdropUrl || i.posterUrl);
         updateHero(items[0]);
       }
     } catch(e) {}
   }
+  // Build ticker
+  buildTicker(allTickerItems);
+}
+
+function buildTicker(items) {
+  const inner = document.getElementById('hero-ticker-inner');
+  if (!inner || !items.length) return;
+  // Deduplicate
+  const seen = new Set();
+  const unique = items.filter(i => { if (seen.has(i.id)) return false; seen.add(i.id); return true; });
+  // Double for seamless loop
+  const all = [...unique, ...unique];
+  inner.innerHTML = all.map(item => `
+    <div class="ticker-item" data-id="${item.id}" onclick="window._tickerClick && window._tickerClick('${item.id}')">
+      <img class="ticker-item-poster" src="${item.posterUrl || ''}" alt="" onerror="this.style.display='none'" />
+      <div>
+        <div class="ticker-item-title">${item.title || ''}</div>
+        <div class="ticker-item-meta">${[item.year, item.qualities && item.qualities[0]].filter(Boolean).join(' · ')}</div>
+      </div>
+    </div>
+  `).join('');
+  // Store items for click
+  const itemMap = {};
+  unique.forEach(i => itemMap[i.id] = i);
+  window._tickerClick = (id) => { if (itemMap[id]) { openDetail(itemMap[id]); playSound('open'); } };
 }
 
 function updateHero(item) {
@@ -296,7 +377,7 @@ function mkCard(item) {
   card.className = 'card';
   const itemCopy = JSON.parse(JSON.stringify(item));
   card.addEventListener('click', () => {
-    openDetail(itemCopy, true); // true = open in fullscreen on home screen
+    openDetail(itemCopy); // true = open in fullscreen on home screen
     playSound('open');
   });
 
@@ -349,16 +430,6 @@ let detailQR = null;
 function initDetailModal() {
   document.getElementById('detail-close').addEventListener('click', closeDetail);
   document.getElementById('detail-modal').addEventListener('click', e => { if (e.target.id === 'detail-modal') closeDetail(); });
-  document.getElementById('detail-fs-btn').addEventListener('click', () => {
-    const modal = document.getElementById('detail-modal');
-    const isFs = modal.classList.toggle('fullscreen');
-    document.getElementById('detail-fs-btn').textContent = isFs ? '⊡' : '⛶';
-    if (isFs && window._detailItem) {
-      const backdrop = document.getElementById('detail-backdrop');
-      backdrop.style.backgroundImage = `url('${window._detailItem.backdropUrl || window._detailItem.posterUrl}')`;
-    }
-    playSound('click');
-  });
   document.addEventListener('keydown', e => { if (e.key === 'Escape') { closeDetail(); closeSearch(); document.getElementById('settings-panel').classList.remove('open'); } });
   document.getElementById('detail-play-btn').addEventListener('click', () => {
     if (!window._detailItem) return;
@@ -372,17 +443,14 @@ function initDetailModal() {
   });
 }
 
-function openDetail(item, fullscreen = false) {
+function openDetail(item) {
   if (!item) return;
   window._detailItem = item;
   const modal = document.getElementById('detail-modal');
   modal.classList.add('open');
-  if (fullscreen) {
-    modal.classList.add('fullscreen');
-    document.getElementById('detail-fs-btn').textContent = '⊡';
-    const backdrop = document.getElementById('detail-backdrop');
-    if (backdrop) backdrop.style.backgroundImage = `url('${item.backdropUrl || item.posterUrl}')`;
-  }
+  // Always show backdrop
+  const backdrop = document.getElementById('detail-backdrop');
+  if (backdrop) backdrop.style.backgroundImage = `url('${item.backdropUrl || item.posterUrl}')`;
 
   document.getElementById('detail-poster').src = item.posterUrl || '';
   document.getElementById('detail-type').textContent = item.type === 'Episode' ? `${item.seriesName || ''} · S${String(item.parentIndexNumber||0).padStart(2,'0')}E${String(item.indexNumber||0).padStart(2,'0')}` : (item.type || 'Movie');
@@ -443,9 +511,7 @@ function mkActorPh(name) {
 }
 
 function closeDetail() {
-  const modal = document.getElementById('detail-modal');
-  modal.classList.remove('open', 'fullscreen');
-  document.getElementById('detail-fs-btn').textContent = '⛶';
+  document.getElementById('detail-modal').classList.remove('open');
   window._detailItem = null;
 }
 
@@ -482,7 +548,7 @@ async function doSearch() {
     items.forEach(item => {
       const itemCopy = JSON.parse(JSON.stringify(item));
       const el = document.createElement('div'); el.className = 'search-result';
-      el.addEventListener('click', () => { closeSearch(); openDetail(itemCopy, true); playSound('open'); });
+      el.addEventListener('click', () => { closeSearch(); openDetail(itemCopy); playSound('open'); });
       el.innerHTML = `<img class="search-result-img" src="${item.posterUrl||''}" alt="" onerror="this.style.display='none'" /><div class="search-result-info"><div class="search-result-title">${item.title||''}</div><div class="search-result-meta">${[item.type,item.year,item.genre].filter(Boolean).join(' · ')}</div><div class="search-result-overview">${item.overview||''}</div></div>`;
       results.appendChild(el);
     });

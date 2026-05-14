@@ -12,6 +12,82 @@
 <body>
 <div id="app">
 
+
+  <!-- Onboarding -->
+  <div id="onboarding" style="display:none;position:fixed;inset:0;z-index:999;background:var(--bg);overflow-y:auto">
+    <div style="max-width:480px;margin:0 auto;padding:48px 24px">
+      <div style="font-family:var(--font-display);font-size:32px;letter-spacing:0.5em;color:var(--accent);text-align:center;margin-bottom:6px">CyanFin</div>
+      <div style="font-size:10px;letter-spacing:0.2em;color:var(--muted);text-align:center;margin-bottom:40px;text-transform:uppercase">Setup</div>
+      
+      <div style="margin-bottom:20px">
+        <label style="display:block;font-size:8px;font-weight:700;letter-spacing:0.25em;text-transform:uppercase;color:var(--accent);opacity:0.6;margin-bottom:6px">Jellyfin Server URL *</label>
+        <input id="ob-jellyfin-url" class="settings-input" style="width:100%;font-size:13px;padding:10px 12px" type="text" placeholder="http://192.168.1.x:8096" />
+        <div style="font-size:9px;color:var(--muted);margin-top:4px">Already set via Docker env — shown here for reference</div>
+      </div>
+
+      <div style="margin-bottom:20px">
+        <label style="display:block;font-size:8px;font-weight:700;letter-spacing:0.25em;text-transform:uppercase;color:var(--accent);opacity:0.6;margin-bottom:6px">TMDB API Key <span style="opacity:0.4;font-weight:400">(optional — for trailers &amp; Coming Soon)</span></label>
+        <input id="ob-tmdb" class="settings-input" style="width:100%;font-size:13px;padding:10px 12px" type="text" placeholder="Get free key at themoviedb.org" />
+      </div>
+
+      <div style="margin-bottom:20px">
+        <label style="display:block;font-size:8px;font-weight:700;letter-spacing:0.25em;text-transform:uppercase;color:var(--accent);opacity:0.6;margin-bottom:6px">Anthropic API Key <span style="opacity:0.4;font-weight:400">(optional — for AI metadata fix)</span></label>
+        <input id="ob-anthropic" class="settings-input" style="width:100%;font-size:13px;padding:10px 12px" type="password" placeholder="sk-ant-..." />
+      </div>
+
+      <div style="margin-bottom:28px">
+        <label style="display:block;font-size:8px;font-weight:700;letter-spacing:0.25em;text-transform:uppercase;color:var(--accent);opacity:0.6;margin-bottom:10px">Theme</label>
+        <div class="theme-grid">
+          <div class="theme-swatch active" data-theme="cinema" title="Cinema"></div>
+          <div class="theme-swatch" data-theme="midnight" title="Midnight"></div>
+          <div class="theme-swatch" data-theme="ember" title="Ember"></div>
+          <div class="theme-swatch" data-theme="arctic" title="Arctic"></div>
+          <div class="theme-swatch" data-theme="neon" title="Neon"></div>
+        </div>
+      </div>
+
+      <div style="margin-bottom:28px">
+        <label style="display:block;font-size:8px;font-weight:700;letter-spacing:0.25em;text-transform:uppercase;color:var(--accent);opacity:0.6;margin-bottom:10px">Layout</label>
+        <div style="display:flex;gap:8px">
+          <div class="ob-layout-btn active" data-layout="desktop" style="flex:1;padding:12px;border:1px solid var(--border);border-radius:var(--radius);cursor:pointer;text-align:center;background:var(--subtle)">
+            <div style="font-size:20px;margin-bottom:4px">🖥</div>
+            <div style="font-size:9px;letter-spacing:0.15em;text-transform:uppercase;color:var(--accent)">Desktop</div>
+          </div>
+          <div class="ob-layout-btn" data-layout="tv" style="flex:1;padding:12px;border:1px solid var(--border2);border-radius:var(--radius);cursor:pointer;text-align:center">
+            <div style="font-size:20px;margin-bottom:4px">📺</div>
+            <div style="font-size:9px;letter-spacing:0.15em;text-transform:uppercase;color:var(--muted)">TV</div>
+          </div>
+          <div class="ob-layout-btn" data-layout="mobile" style="flex:1;padding:12px;border:1px solid var(--border2);border-radius:var(--radius);cursor:pointer;text-align:center">
+            <div style="font-size:20px;margin-bottom:4px">📱</div>
+            <div style="font-size:9px;letter-spacing:0.15em;text-transform:uppercase;color:var(--muted)">Mobile</div>
+          </div>
+        </div>
+      </div>
+
+      <div style="margin-bottom:28px">
+        <label style="display:block;font-size:8px;font-weight:700;letter-spacing:0.25em;text-transform:uppercase;color:var(--accent);opacity:0.6;margin-bottom:10px">Mode</label>
+        <div style="display:flex;gap:8px">
+          <div class="ob-mode-btn active" data-mode="advanced" style="flex:1;padding:12px;border:1px solid var(--border);border-radius:var(--radius);cursor:pointer;text-align:center;background:var(--subtle)">
+            <div style="font-size:9px;letter-spacing:0.15em;text-transform:uppercase;color:var(--accent)">Advanced</div>
+            <div style="font-size:8px;color:var(--muted);margin-top:3px">All features, badges, library tools</div>
+          </div>
+          <div class="ob-mode-btn" data-mode="simple" style="flex:1;padding:12px;border:1px solid var(--border2);border-radius:var(--radius);cursor:pointer;text-align:center">
+            <div style="font-size:9px;letter-spacing:0.15em;text-transform:uppercase;color:var(--muted)">Simple</div>
+            <div style="font-size:8px;color:var(--muted);margin-top:3px">Clean browsing only</div>
+          </div>
+        </div>
+      </div>
+
+      <div style="font-size:9px;color:var(--muted);line-height:1.7;padding:12px;background:var(--subtle);border-radius:var(--radius);margin-bottom:24px">
+        <strong style="color:var(--accent);opacity:0.7">Note:</strong> API keys must be set as Docker environment variables to take effect. This screen saves your preferences locally.
+        <br>Add to your Docker run command:<br>
+        <code style="font-size:8px;color:var(--cream);opacity:0.5">-e TMDB_API_KEY="..." -e ANTHROPIC_API_KEY="..."</code>
+      </div>
+
+      <button class="login-btn" id="ob-done">Get Started →</button>
+    </div>
+  </div>
+
   <!-- Login -->
   <div class="view active" id="view-login">
     <div class="login-card">
@@ -53,7 +129,8 @@
     <div class="home-hero">
       <div class="home-hero-bg" id="hero-bg"></div>
       <div class="home-hero-content">
-        <div class="home-hero-label" id="hero-label">Now Playing</div>
+        <div id="hero-ticker"><div id="hero-ticker-inner"></div></div>
+      <div class="home-hero-label" id="hero-label">Now Playing</div>
         <div class="home-hero-title" id="hero-title">—</div>
         <div class="home-hero-meta" id="hero-meta"></div>
       </div>
@@ -290,9 +367,9 @@
     <div id="detail-card">
       <div id="detail-poster-wrap">
         <div id="detail-backdrop"></div>
+        <div id="detail-poster-gradient"></div>
         <img id="detail-poster" src="" alt="" />
         <button class="detail-close" id="detail-close">✕</button>
-        <button id="detail-fs-btn" title="Expand">⛶</button>
       </div>
       <div id="detail-body">
         <div class="detail-type" id="detail-type"></div>
