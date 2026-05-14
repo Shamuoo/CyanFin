@@ -14,7 +14,7 @@ const PORT = parseInt(process.env.PORT || '3000');
 const JELLYFIN_URL = (process.env.JELLYFIN_URL || '').replace(/\/$/, '');
 const JELLYFIN_API_KEY = process.env.JELLYFIN_API_KEY || '';
 const TMDB_API_KEY = process.env.TMDB_API_KEY || '';
-const VERSION = '0.9.0';
+const VERSION = '0.9.3';
 
 if (!JELLYFIN_URL) console.warn('[warn] JELLYFIN_URL not set');
 
@@ -65,9 +65,11 @@ Return JSON: {"overview":"engaging 2-3 sentence overview","tagline":"short memor
 
   return new Promise((resolve, reject) => {
     const body = JSON.stringify({ model: 'claude-sonnet-4-20250514', max_tokens: 512, messages: [{ role: 'user', content: prompt }] });
+    const anthropicKey = process.env.ANTHROPIC_API_KEY || '';
+    if (!anthropicKey) return resolve({ success: false, error: 'ANTHROPIC_API_KEY not set in environment' });
     const req = https.request({
       hostname: 'api.anthropic.com', path: '/v1/messages', method: 'POST',
-      headers: { 'Content-Type':'application/json', 'anthropic-version':'2023-06-01', 'Content-Length': Buffer.byteLength(body) },
+      headers: { 'Content-Type':'application/json', 'anthropic-version':'2023-06-01', 'x-api-key': anthropicKey, 'Content-Length': Buffer.byteLength(body) },
       timeout: 15000,
     }, (res) => {
       let d = ''; res.on('data', c => d += c);

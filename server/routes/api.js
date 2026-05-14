@@ -372,10 +372,16 @@ async function handleApi(pathname, query, session) {
     const fs = require('fs');
     const stats = {};
     try {
-      const cpu1 = fs.readFileSync('/proc/stat','utf8').split('\n')[0].split(' ').slice(1).map(Number);
-      await new Promise(r=>setTimeout(r,200));
-      const cpu2 = fs.readFileSync('/proc/stat','utf8').split('\n')[0].split(' ').slice(1).map(Number);
-      stats.cpuPercent = Math.round((1-(cpu2[3]-cpu1[3])/(cpu2.reduce((a,b)=>a+b,0)-cpu1.reduce((a,b)=>a+b,0)))*100);
+      const parseCpuLine = () => {
+        const parts = fs.readFileSync('/proc/stat','utf8').split('\n')[0].trim().split(/\s+/).slice(1).map(Number);
+        return { idle: parts[3] + (parts[4]||0), total: parts.reduce((a,b)=>a+b,0) };
+      };
+      const c1 = parseCpuLine();
+      await new Promise(r=>setTimeout(r,500));
+      const c2 = parseCpuLine();
+      const dTotal = c2.total - c1.total;
+      const dIdle = c2.idle - c1.idle;
+      stats.cpuPercent = dTotal > 0 ? Math.max(0, Math.min(100, Math.round((1 - dIdle/dTotal)*100))) : 0;
       const mem = fs.readFileSync('/proc/meminfo','utf8');
       const memTotal = parseInt(mem.match(/MemTotal:\s+(\d+)/)[1]);
       const memAvail = parseInt(mem.match(/MemAvailable:\s+(\d+)/)[1]);

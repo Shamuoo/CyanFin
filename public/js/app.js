@@ -160,9 +160,10 @@ async function renderHomeSections() {
     { key: 'recent', label: 'Recently Added', fn: API.recentlyAdded.bind(API) },
     { key: 'popular', label: 'Most Popular', fn: API.popular.bind(API) },
     { key: 'history', label: 'Watch History', fn: API.history.bind(API) },
-    { key: 'best3d', label: 'Best in 3D', fn: API.best3D.bind(API) },
+    { key: 'best3d', label: 'Best in 3D 🎬', fn: API.best3D.bind(API) },
     { key: 'onthisday', label: 'On This Day', fn: API.onThisDay.bind(API) },
     { key: 'coming', label: 'Coming Soon', fn: API.comingSoon.bind(API) },
+    { key: 'random', label: '🎲 Feeling Lucky', fn: async () => { const r = await API.random(); return r ? [r] : []; } },
   ];
   container.innerHTML = '';
   for (const sec of sections) {
@@ -294,7 +295,10 @@ function mkCard(item) {
   const card = document.createElement('div');
   card.className = 'card';
   const itemCopy = JSON.parse(JSON.stringify(item));
-  card.addEventListener('click', () => { openDetail(itemCopy); playSound('open'); });
+  card.addEventListener('click', () => {
+    openDetail(itemCopy, true); // true = open in fullscreen on home screen
+    playSound('open');
+  });
 
   const wrap = document.createElement('div'); wrap.className = 'card-img-wrap';
   wrap.style.pointerEvents = 'none';
@@ -368,11 +372,17 @@ function initDetailModal() {
   });
 }
 
-function openDetail(item) {
+function openDetail(item, fullscreen = false) {
   if (!item) return;
   window._detailItem = item;
   const modal = document.getElementById('detail-modal');
   modal.classList.add('open');
+  if (fullscreen) {
+    modal.classList.add('fullscreen');
+    document.getElementById('detail-fs-btn').textContent = '⊡';
+    const backdrop = document.getElementById('detail-backdrop');
+    if (backdrop) backdrop.style.backgroundImage = `url('${item.backdropUrl || item.posterUrl}')`;
+  }
 
   document.getElementById('detail-poster').src = item.posterUrl || '';
   document.getElementById('detail-type').textContent = item.type === 'Episode' ? `${item.seriesName || ''} · S${String(item.parentIndexNumber||0).padStart(2,'0')}E${String(item.indexNumber||0).padStart(2,'0')}` : (item.type || 'Movie');
@@ -387,10 +397,15 @@ function openDetail(item) {
     const c = document.createElement('div'); c.className = `chip ${cls}`; c.textContent = v; chips.appendChild(c);
   });
   (item.qualities || []).forEach(q => {
-    const c = document.createElement('div'); c.className = `chip ${q.includes('3D') ? 'chip-3d' : 'chip-a'}`; c.textContent = q; chips.appendChild(c);
+    const cls = q.includes('3D') ? 'chip-3d' : q.startsWith('4K') ? 'chip-4k' : 'chip-a';
+    const c = document.createElement('div'); c.className = `chip ${cls}`; c.textContent = q; chips.appendChild(c);
   });
-  if (item.audio) { const c = document.createElement('div'); c.className = 'chip chip-p'; c.textContent = item.audio; chips.appendChild(c); }
-  if (item.versionCount > 1) { const c = document.createElement('div'); c.className = 'chip chip-p'; c.textContent = `${item.versionCount} versions`; chips.appendChild(c); }
+  if (item.audio) {
+    const isHigh = ['Atmos','DTS:X','TrueHD','DTS-HD MA'].includes(item.audio);
+    const c = document.createElement('div'); c.className = `chip ${isHigh ? 'chip-a' : 'chip-p'}`; c.textContent = `🔊 ${item.audio}`; chips.appendChild(c);
+  }
+  if (item.versionCount > 1) { const c = document.createElement('div'); c.className = 'chip chip-p'; c.textContent = `📀 ${item.versionCount} versions`; chips.appendChild(c); }
+  if (item.studios && item.studios.length) { const c = document.createElement('div'); c.className = 'chip chip-p'; c.textContent = item.studios[0]; chips.appendChild(c); }
 
   // Cast
   const castGrid = document.getElementById('detail-cast');
@@ -467,7 +482,7 @@ async function doSearch() {
     items.forEach(item => {
       const itemCopy = JSON.parse(JSON.stringify(item));
       const el = document.createElement('div'); el.className = 'search-result';
-      el.addEventListener('click', () => { closeSearch(); openDetail(itemCopy); playSound('open'); });
+      el.addEventListener('click', () => { closeSearch(); openDetail(itemCopy, true); playSound('open'); });
       el.innerHTML = `<img class="search-result-img" src="${item.posterUrl||''}" alt="" onerror="this.style.display='none'" /><div class="search-result-info"><div class="search-result-title">${item.title||''}</div><div class="search-result-meta">${[item.type,item.year,item.genre].filter(Boolean).join(' · ')}</div><div class="search-result-overview">${item.overview||''}</div></div>`;
       results.appendChild(el);
     });
@@ -561,6 +576,22 @@ document.getElementById('movies-sort').addEventListener('change', () => loadMovi
 document.getElementById('movies-order').addEventListener('change', () => loadMovies());
 document.getElementById('movies-genre').addEventListener('change', () => loadMovies());
 document.getElementById('movies-more').addEventListener('click', () => loadMovies(true));
+
+// Auto-load more on scroll
+document.getElementById('view-movies').addEventListener('scroll', () => {
+  const el = document.getElementById('view-movies');
+  const moreBtn = document.getElementById('movies-more');
+  if (moreBtn.style.display !== 'none' && el.scrollTop + el.clientHeight >= el.scrollHeight - 200) {
+    loadMovies(true);
+  }
+});
+document.getElementById('view-shows').addEventListener('scroll', () => {
+  const el = document.getElementById('view-shows');
+  const moreBtn = document.getElementById('shows-more');
+  if (moreBtn.style.display !== 'none' && el.scrollTop + el.clientHeight >= el.scrollHeight - 200) {
+    loadShows(true);
+  }
+});
 
 // Auto-load genres on first movies view
 let moviesGenresLoaded = false;
@@ -795,6 +826,33 @@ function initLibraryTools() {
   });
 
   // Quick action buttons
+  // Bulk AI fix
+  document.getElementById('qa-ai-fix-all').addEventListener('click', async function() {
+    if (!confirm('Run AI metadata fix on all items missing overviews? This may take several minutes.')) return;
+    this.classList.add('running'); this.textContent = '⏳ Fixing…';
+    try {
+      const d = await API.libMissing();
+      const items = (d.missingOverview || []).slice(0, 20);
+      let fixed = 0, failed = 0;
+      for (const item of items) {
+        try {
+          const r = await API.libAiFix(item.id);
+          if (r.success && r.suggestion) {
+            await API.libUpdateItem(item.id, {
+              Overview: r.suggestion.overview || '',
+              Taglines: r.suggestion.tagline ? [r.suggestion.tagline] : [],
+            });
+            fixed++; libLog(`✓ AI fixed: ${item.title}`);
+          }
+        } catch(e) { failed++; libLog(`✗ Failed: ${item.title} — ${e.message}`); }
+        await new Promise(r => setTimeout(r, 500)); // rate limit
+      }
+      this.textContent = `✓ Fixed ${fixed}${failed ? `, ${failed} failed` : ''}`;
+      this.classList.remove('running'); this.classList.add('done');
+      showToast('🤖', `AI fixed ${fixed} items`);
+    } catch(e) { this.textContent = '✗ Error'; this.classList.remove('running'); libLog('Bulk AI fix error: ' + e.message); }
+  });
+
   document.getElementById('qa-scan').addEventListener('click', async function() {
     this.classList.add('running'); this.textContent = '⏳ Scanning…';
     try { await API.libScan(); libLog('Library scan triggered'); this.textContent = '✓ Done'; this.classList.remove('running'); this.classList.add('done'); } catch(e) { this.textContent = '✗ Failed'; this.classList.remove('running'); }

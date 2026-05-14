@@ -35,26 +35,26 @@ async function handleLibrary(pathname, query, session, req) {
   const userId = session.userId;
 
   if (pathname === '/api/library/scan') {
-    await jf.get('/Library/Refresh', token);
+    await jf.post('/Library/Refresh', {}, token);
     return { success: true, message: 'Library scan triggered' };
   }
 
   if (pathname === '/api/library/refresh-metadata') {
     const { id } = query;
     if (!id) return { error: 'No item ID' };
-    await jf.get(`/Items/${id}/Refresh?MetadataRefreshMode=FullRefresh&ImageRefreshMode=FullRefresh&ReplaceAllMetadata=false&ReplaceAllImages=false`, token);
+    await jf.post(`/Items/${id}/Refresh?MetadataRefreshMode=FullRefresh&ImageRefreshMode=FullRefresh&ReplaceAllMetadata=false&ReplaceAllImages=false`, {}, token);
     return { success: true };
   }
 
   if (pathname === '/api/library/refresh-images') {
     const { id } = query;
     if (!id) return { error: 'No item ID' };
-    await jf.get(`/Items/${id}/Refresh?MetadataRefreshMode=None&ImageRefreshMode=FullRefresh&ReplaceAllImages=true`, token);
+    await jf.post(`/Items/${id}/Refresh?MetadataRefreshMode=None&ImageRefreshMode=FullRefresh&ReplaceAllImages=true`, {}, token);
     return { success: true };
   }
 
   if (pathname === '/api/library/refresh-all') {
-    await jf.get('/Library/Refresh', token);
+    await jf.post('/Library/Refresh', {}, token);
     return { success: true, message: 'Full refresh triggered' };
   }
 

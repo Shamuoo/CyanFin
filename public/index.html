@@ -244,6 +244,7 @@
             <button class="qa-btn" id="qa-refresh-all">🔄 Refresh All Metadata</button>
             <button class="qa-btn" id="qa-fix-images">🖼 Fix Missing Images</button>
             <button class="qa-btn" id="qa-full-scan">▶ Full Scan Report</button>
+            <button class="qa-btn" id="qa-ai-fix-all">🤖 AI Fix All Missing</button>
           </div>
           <div id="lib-log"></div>
         </div>
@@ -362,6 +363,12 @@
           <option value="tv">TV</option>
           <option value="mobile">Mobile</option>
         </select>
+      </div>
+    </div>
+    <div class="settings-section">
+      <div class="settings-section-title">AI Features</div>
+      <div style="font-size:10px;color:var(--muted);line-height:1.6;padding-bottom:8px">
+        AI metadata fix requires <code style="font-size:9px;background:var(--subtle);padding:1px 4px;border-radius:2px">ANTHROPIC_API_KEY</code> set in Docker environment.
       </div>
     </div>
     <div class="settings-section">
