@@ -321,6 +321,94 @@ async function handleApi(pathname, query, session) {
     return mapped;
   }
 
+  // PlaybackInfo - negotiate stream URL with Jellyfin (like official client)
+  if (pathname === '/api/playback-info') {
+    const itemId = query.id;
+    if (!itemId) return { error: 'No id' };
+
+    // Post a device profile that tells Jellyfin what the browser supports
+    // This is the standard browser profile - supports H264/AAC in MP4/WebM
+    const deviceProfile = {
+      DeviceProfile: {
+        MaxStreamingBitrate: 140000000,
+        MaxStaticBitrate: 140000000,
+        MusicStreamingTranscodingBitrate: 192000,
+        DirectPlayProfiles: [
+          { Container: 'webm', Type: 'Video', VideoCodec: 'vp8,vp9,av1', AudioCodec: 'vorbis,opus' },
+          { Container: 'mp4,m4v', Type: 'Video', VideoCodec: 'h264,hevc,vp8,vp9,av1', AudioCodec: 'aac,mp3,ac3,eac3,flac,vorbis,opus,alac,dts,truehd' },
+          { Container: 'mkv', Type: 'Video', VideoCodec: 'h264,hevc,vp8,vp9,av1', AudioCodec: 'aac,mp3,ac3,eac3,flac,vorbis,opus,alac,dts,truehd' },
+          { Container: 'mov', Type: 'Video', VideoCodec: 'h264', AudioCodec: 'aac,mp3' },
+          { Container: 'mp3', Type: 'Audio' },
+          { Container: 'aac', Type: 'Audio' },
+          { Container: 'flac', Type: 'Audio' },
+          { Container: 'opus', Type: 'Audio' },
+        ],
+        TranscodingProfiles: [
+          { Container: 'ts', Type: 'Video', VideoCodec: 'h264', AudioCodec: 'aac,mp3,ac3', Protocol: 'hls', EstimateContentLength: false, EnableMpegtsM2TsMode: false, TranscodeSeekInfo: 'Auto', CopyTimestamps: false, Context: 'Streaming', EnableSubtitlesInManifest: false, MaxAudioChannels: '6', MinSegments: 1, SegmentLength: 3, BreakOnNonKeyFrames: true },
+          { Container: 'aac', Type: 'Audio', AudioCodec: 'aac', Protocol: 'http', Context: 'Streaming', MaxAudioChannels: '2' },
+          { Container: 'mp3', Type: 'Audio', AudioCodec: 'mp3', Protocol: 'http', Context: 'Streaming', MaxAudioChannels: '2' },
+        ],
+        ContainerProfiles: [],
+        CodecProfiles: [
+          { Type: 'Video', Codec: 'h264', Conditions: [
+            { Condition: 'NotEquals', Property: 'IsAnamorphic', Value: 'true', IsRequired: false },
+            { Condition: 'EqualsAny', Property: 'VideoProfile', Value: 'high|main|baseline|constrained baseline|high 10', IsRequired: false },
+            { Condition: 'EqualsAny', Property: 'VideoRangeType', Value: 'SDR', IsRequired: false },
+            { Condition: 'LessThanEqual', Property: 'VideoLevel', Value: '52', IsRequired: false },
+            { Condition: 'NotEquals', Property: 'IsInterlaced', Value: 'true', IsRequired: false },
+          ]},
+        ],
+        SubtitleProfiles: [
+          { Format: 'vtt', Method: 'External' },
+          { Format: 'ass', Method: 'External' },
+          { Format: 'ssa', Method: 'External' },
+        ],
+      },
+    };
+
+    try {
+      const info = await jf.post(
+        `/Items/${itemId}/PlaybackInfo?userId=${userId}&StartTimeTicks=0&IsPlayback=true&AutoOpenLiveStream=true&MediaSourceId=${itemId}`,
+        deviceProfile,
+        token
+      );
+
+      if (!info || !info.MediaSources || !info.MediaSources.length) {
+        return { error: 'No media sources returned', raw: info };
+      }
+
+      const source = info.MediaSources[0];
+      const playSessionId = info.PlaySessionId;
+      const mediaSourceId = source.Id;
+
+      let streamUrl;
+      if (source.SupportsDirectPlay || source.SupportsDirectStream) {
+        // Direct play/stream - no transcoding needed
+        streamUrl = process.env.JELLYFIN_URL + '/Videos/' + itemId + '/stream?api_key=' + token + '&Static=true&MediaSourceId=' + mediaSourceId;
+      } else {
+        // Transcoding required - use the URL Jellyfin gave us
+        streamUrl = source.TranscodingUrl ? (process.env.JELLYFIN_URL + source.TranscodingUrl) : (process.env.JELLYFIN_URL + '/Videos/' + itemId + '/stream?api_key=' + token + '&MediaSourceId=' + mediaSourceId + '&VideoCodec=h264&AudioCodec=aac&TranscodingProtocol=hls');
+      }
+
+      return {
+        streamUrl,
+        playSessionId,
+        mediaSourceId,
+        playMethod: source.SupportsDirectPlay ? 'DirectPlay' : source.SupportsDirectStream ? 'DirectStream' : 'Transcode',
+        container: source.Container,
+        videoCodec: source.VideoStream ? source.VideoStream.Codec : null,
+        audioCodec: source.AudioStream ? source.AudioStream.Codec : null,
+      };
+    } catch(e) {
+      // Fallback to direct stream if PlaybackInfo fails
+      return {
+        streamUrl: process.env.JELLYFIN_URL + '/Videos/' + itemId + '/stream?api_key=' + token + '&Static=true',
+        playMethod: 'DirectPlay',
+        error: e.message,
+      };
+    }
+  }
+
   // Weather
   if (pathname === '/api/weather') {
     const city = query.city || 'Brisbane';

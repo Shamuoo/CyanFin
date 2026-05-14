@@ -65,6 +65,8 @@ async function doLogin() {
   try {
     const result = await API.login(username, password);
     sessionStorage.setItem('cf_user', JSON.stringify(result.user));
+    // Fetch server config (Jellyfin URL for fallbacks etc)
+    fetch('/api/config').then(r => r.json()).then(cfg => { window._jellyfinUrl = cfg.jellyfinUrl; }).catch(()=>{});
     onLoggedIn(result.user);
   } catch(e) {
     errorEl.textContent = e.message || 'Login failed';

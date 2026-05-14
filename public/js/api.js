@@ -60,6 +60,9 @@ const API = {
   albums(artistId) { return this.get(`/api/music/albums${artistId ? `?artistId=${artistId}` : ''}`); },
   tracks(albumId) { return this.get(`/api/music/tracks?albumId=${albumId}`); },
 
+  // Playback
+  playbackInfo(id) { return this.get('/api/playback-info?id=' + id); },
+
   // Health
   health() { return this.get('/api/health'); },
   systemStats() { return this.get('/api/system-stats'); },

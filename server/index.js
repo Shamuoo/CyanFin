@@ -14,7 +14,7 @@ const PORT = parseInt(process.env.PORT || '3000');
 const JELLYFIN_URL = (process.env.JELLYFIN_URL || '').replace(/\/$/, '');
 const JELLYFIN_API_KEY = process.env.JELLYFIN_API_KEY || '';
 const TMDB_API_KEY = process.env.TMDB_API_KEY || '';
-const VERSION = '0.9.3';
+const VERSION = '0.9.7';
 
 if (!JELLYFIN_URL) console.warn('[warn] JELLYFIN_URL not set');
 
@@ -171,6 +171,13 @@ const server = http.createServer(async (req, res) => {
     res.writeHead(302, { 'Location': streamUrl });
     res.end();
     return;
+  }
+
+  // ── CLIENT CONFIG ──
+  if (pathname === '/api/config') {
+    const session = auth.getSessionFromRequest(req);
+    if (!session) return json(res, { error: 'Unauthorized' }, 401);
+    return json(res, { jellyfinUrl: JELLYFIN_URL, version: VERSION });
   }
 
   // ── STREAM URL (returns actual Jellyfin URL for HLS.js) ──

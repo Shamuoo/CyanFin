@@ -1,7 +1,9 @@
-// CyanFin Player - uses native browser video with direct Jellyfin stream
+// CyanFin Player v3 - uses Jellyfin PlaybackInfo for proper stream negotiation
 import { playSound } from './themes.js';
+import API from './api.js';
 
 let currentItem = null;
+let playSessionId = null;
 let controlsTimer = null;
 let isDragging = false;
 
@@ -39,17 +41,18 @@ export function initPlayer() {
     $('player-time').textContent = fmtTime(video.currentTime) + ' / ' + fmtTime(video.duration);
   });
   video.addEventListener('ended', () => {
-    if (currentItem) reportProgress(currentItem.id, video.duration * 10000000, true);
+    reportProgress(true);
     window.dispatchEvent(new CustomEvent('player:ended', { detail: { item: currentItem } }));
   });
   video.addEventListener('error', () => {
     $('player-spinner').classList.remove('loading');
-    const code = video.error ? video.error.code : '?';
-    const msg = video.error ? video.error.message : 'Unknown error';
-    showError(`Playback error (${code}): ${msg}`);
+    const err = video.error;
+    const msgs = { 1:'Aborted',2:'Network error',3:'Decode error',4:'Format not supported' };
+    showError(`${msgs[err && err.code] || 'Unknown error'} — try opening in Jellyfin directly`);
+    // Show open-in-jellyfin button
+    showJellyfinFallback();
   });
 
-  // Click video = toggle play
   video.addEventListener('click', e => { e.stopPropagation(); video.paused ? video.play() : video.pause(); });
   $('player-play-btn').addEventListener('click', e => { e.stopPropagation(); video.paused ? video.play() : video.pause(); playSound('click'); });
 
@@ -69,28 +72,19 @@ export function initPlayer() {
   document.addEventListener('mouseup', () => { if (!isDragging) return; isDragging = false; if (video.duration) video.currentTime = video.duration * parseFloat($('player-progress-fill').style.width) / 100; });
   document.addEventListener('touchend', () => { if (!isDragging) return; isDragging = false; if (video.duration) video.currentTime = video.duration * parseFloat($('player-progress-fill').style.width) / 100; });
 
-  // Mute
   $('player-mute-btn').addEventListener('click', e => { e.stopPropagation(); video.muted = !video.muted; $('player-mute-btn').textContent = video.muted ? '🔇' : '🔊'; });
-
-  // Volume
   $('player-vol').addEventListener('click', e => {
     e.stopPropagation();
     const pct = Math.max(0, Math.min(1, (e.clientX - e.currentTarget.getBoundingClientRect().left) / e.currentTarget.offsetWidth));
     video.volume = pct; $('player-vol-fill').style.width = (pct*100)+'%';
   });
-
-  // Fullscreen
-  $('player-fs-btn').addEventListener('click', e => { e.stopPropagation(); document.fullscreenElement ? document.exitFullscreen() : view.requestFullscreen().catch(()=>{}); playSound('click'); });
-
-  // PiP
+  $('player-fs-btn').addEventListener('click', e => { e.stopPropagation(); document.fullscreenElement ? document.exitFullscreen() : view.requestFullscreen().catch(()=>{}); });
   $('player-pip-btn').addEventListener('click', async e => { e.stopPropagation(); try { document.pictureInPictureElement ? await document.exitPictureInPicture() : await video.requestPictureInPicture(); } catch(e) {} });
 
-  // Back
   ['player-back-btn','player-back'].forEach(id => {
     const el = $(id); if (el) el.addEventListener('click', e => { e.stopPropagation(); exitPlayer(); });
   });
 
-  // Keyboard
   document.addEventListener('keydown', e => {
     if (!$('view-player').classList.contains('active')) return;
     switch(e.key) {
@@ -105,11 +99,7 @@ export function initPlayer() {
     }
   });
 
-  // Progress reporting
-  setInterval(() => {
-    if (currentItem && video && !video.paused && video.currentTime > 0)
-      reportProgress(currentItem.id, video.currentTime * 10000000, false);
-  }, 10000);
+  setInterval(() => { if (currentItem && video && !video.paused && video.currentTime > 0) reportProgress(false); }, 10000);
 }
 
 function exitPlayer() {
@@ -118,27 +108,48 @@ function exitPlayer() {
   playSound('click');
 }
 
-async function reportProgress(itemId, ticks, stopped) {
+async function reportProgress(stopped) {
+  if (!currentItem) return;
+  const video = $('player-video');
+  const ticks = video ? Math.round(video.currentTime * 10000000) : 0;
   try {
-    await fetch(`/api/items/${itemId}/${stopped ? 'playbackstopped' : 'playbackprogress'}`, {
+    await fetch('/api/items/' + currentItem.id + '/' + (stopped ? 'playbackstopped' : 'playbackprogress'), {
       method: 'POST', headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ ItemId: itemId, PositionTicks: Math.round(ticks) }),
+      body: JSON.stringify({ ItemId: currentItem.id, PositionTicks: ticks, PlaySessionId: playSessionId }),
     });
   } catch(e) {}
 }
 
 function showError(msg) {
   let el = $('player-error');
-  if (!el) {
-    el = document.createElement('div'); el.id = 'player-error';
-    el.style.cssText = 'position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);color:#e74c3c;font-size:13px;text-align:center;padding:24px 32px;background:rgba(0,0,0,0.9);border-radius:8px;z-index:20;max-width:80vw;line-height:1.7;border:1px solid rgba(231,76,60,0.3)';
-    $('view-player').appendChild(el);
+  if (!el) { el = document.createElement('div'); el.id = 'player-error'; el.style.cssText = 'position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);color:#e74c3c;font-size:13px;text-align:center;padding:24px 32px;background:rgba(0,0,0,0.92);border-radius:8px;z-index:20;max-width:80vw;line-height:1.8;border:1px solid rgba(231,76,60,0.3)'; $('view-player').appendChild(el); }
+  el.innerHTML = `⚠️ ${msg}<br><br><button onclick="this.parentElement.remove()" style="font-size:10px;padding:6px 14px;border-radius:4px;border:1px solid rgba(255,255,255,0.15);background:rgba(255,255,255,0.06);color:rgba(255,255,255,0.5);cursor:pointer;margin-right:8px">Dismiss</button>`;
+}
+
+function showJellyfinFallback() {
+  if (!currentItem) return;
+  // Add "Open in Jellyfin" button to error
+  const el = $('player-error');
+  if (el) {
+    const jellyfinUrl = (window._jellyfinUrl || '') + '/web/#/details?id=' + currentItem.id;
+    el.innerHTML += `<a href="${jellyfinUrl}" target="_blank" style="display:inline-block;font-size:10px;padding:6px 14px;border-radius:4px;border:1px solid rgba(255,255,255,0.2);background:rgba(255,255,255,0.08);color:rgba(255,255,255,0.7);cursor:pointer;text-decoration:none">Open in Jellyfin ↗</a>`;
   }
-  el.innerHTML = `⚠️ ${msg}<br><br><button onclick="this.parentElement.remove()" style="font-size:11px;padding:5px 14px;border-radius:4px;border:1px solid rgba(255,255,255,0.2);background:rgba(255,255,255,0.08);color:rgba(255,255,255,0.6);cursor:pointer">Dismiss</button>`;
+}
+
+// Show which play method is being used
+function showPlayMethod(method, container) {
+  let badge = $('player-method-badge');
+  if (!badge) { badge = document.createElement('div'); badge.id = 'player-method-badge'; badge.style.cssText = 'position:absolute;top:16px;right:60px;font-size:9px;letter-spacing:0.15em;text-transform:uppercase;padding:3px 8px;border-radius:3px;opacity:0.6;pointer-events:none;z-index:5'; $('view-player').appendChild(badge); }
+  const colors = { DirectPlay:'rgba(46,204,113,0.8)', DirectStream:'rgba(93,173,226,0.8)', Transcode:'rgba(243,156,18,0.8)' };
+  badge.style.background = colors[method] || 'rgba(255,255,255,0.2)';
+  badge.style.color = '#000';
+  badge.textContent = method + (container ? ' · ' + container : '');
+  setTimeout(() => { if (badge) badge.style.opacity = '0'; }, 4000);
 }
 
 export function playItem(item) {
   currentItem = item;
+  playSessionId = null;
   const video = $('player-video');
   if (!video) return;
 
@@ -149,34 +160,45 @@ export function playItem(item) {
   video.removeAttribute('src');
   video.load();
   const errEl = $('player-error'); if (errEl) errEl.remove();
+  const badge = $('player-method-badge'); if (badge) badge.remove();
   $('player-spinner').classList.add('loading');
 
   const startTime = (item.userData && item.userData.PlaybackPositionTicks > 60 * 10000000)
     ? item.userData.PlaybackPositionTicks / 10000000 : 0;
 
-  // Get stream URL from server - returns both HLS and direct
-  fetch(`/api/stream-url?id=${item.id}`)
-    .then(r => r.json())
-    .then(({ url, directUrl }) => {
-      // Try direct stream first - always works, no transcoding needed
-      // Browser plays whatever container/codec it supports natively
-      video.src = directUrl;
-      video.crossOrigin = 'anonymous';
+  // Use PlaybackInfo to get proper negotiated stream URL
+  API.playbackInfo(item.id)
+    .then(info => {
+      if (info.error && !info.streamUrl) throw new Error(info.error);
+
+      playSessionId = info.playSessionId;
+      const streamUrl = info.streamUrl;
+      const method = info.playMethod || 'DirectPlay';
+
+      console.log('[Player] Method:', method, '| URL:', streamUrl.substring(0, 80) + '...');
+      showPlayMethod(method, info.container);
+
+      video.src = streamUrl;
       if (startTime > 0) {
         video.addEventListener('loadedmetadata', () => { video.currentTime = startTime; }, { once: true });
       }
       video.play()
-        .then(() => { $('player-spinner').classList.remove('loading'); })
+        .then(() => $('player-spinner').classList.remove('loading'))
         .catch(err => {
-          // Autoplay blocked - show message
           $('player-spinner').classList.remove('loading');
-          showError('Tap anywhere to start playback');
-          video.addEventListener('click', () => { video.play(); const e = $('player-error'); if(e) e.remove(); }, { once: true });
+          if (err.name === 'NotAllowedError') {
+            showError('Tap to start playback');
+            video.addEventListener('click', () => { video.play(); const e = $('player-error'); if(e) e.remove(); }, { once: true });
+          } else {
+            showError('Playback failed: ' + err.message);
+            showJellyfinFallback();
+          }
         });
     })
     .catch(err => {
       $('player-spinner').classList.remove('loading');
-      showError(`Could not load stream: ${err.message}`);
+      showError('Could not start playback: ' + err.message);
+      showJellyfinFallback();
     });
 
   playSound('play');
@@ -186,14 +208,16 @@ export function playItem(item) {
 export function stopPlayer() {
   const video = $('player-video');
   if (!video) return;
-  if (currentItem && !video.paused) reportProgress(currentItem.id, video.currentTime * 10000000, true);
+  if (currentItem && !video.paused) reportProgress(true);
   video.pause();
   video.removeAttribute('src');
   video.load();
   $('player-spinner').classList.remove('loading');
   $('view-player').classList.remove('controls-visible');
   currentItem = null;
+  playSessionId = null;
   const errEl = $('player-error'); if (errEl) errEl.remove();
+  const badge = $('player-method-badge'); if (badge) badge.remove();
 }
 
 export function getCurrentItem() { return currentItem; }
