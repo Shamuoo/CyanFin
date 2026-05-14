@@ -5,6 +5,7 @@ const path = require('path');
 const url = require('url');
 
 const jf = require('./jellyfin');
+const cfg = require('./config');
 const auth = require('./auth');
 const tmdb = require('./tmdb');
 const { handleApi } = require('./routes/api');
@@ -13,10 +14,11 @@ const { handleIntegrations } = require('./routes/integrations');
 const { handleStats } = require('./routes/stats');
 
 const PORT = parseInt(process.env.PORT || '3000');
-const JELLYFIN_URL = (process.env.JELLYFIN_URL || '').replace(/\/$/, '');
-const JELLYFIN_API_KEY = process.env.JELLYFIN_API_KEY || '';
-const TMDB_API_KEY = process.env.TMDB_API_KEY || '';
-const VERSION = '0.10.0';
+cfg.loadConfig();
+const JELLYFIN_URL = (cfg.get('JELLYFIN_URL') || '').replace(/\/$/, '');
+const JELLYFIN_API_KEY = cfg.get('JELLYFIN_API_KEY') || '';
+const TMDB_API_KEY = cfg.get('TMDB_API_KEY') || '';
+const VERSION = '0.10.1';
 
 if (!JELLYFIN_URL) console.warn('[warn] JELLYFIN_URL not set');
 
@@ -175,11 +177,33 @@ const server = http.createServer(async (req, res) => {
     return;
   }
 
+  // ── CONFIG SAVE ──
+  if (pathname === '/api/config/save' && req.method === 'POST') {
+    const session = auth.getSessionFromRequest(req);
+    if (!session || !session.isAdmin) return json(res, { error: 'Admin required' }, 403);
+    const body = await readBody(req);
+    const result = cfg.saveConfig(body);
+    if (result.success) {
+      // Re-init jellyfin and tmdb with new config
+      const newJfUrl = (cfg.get('JELLYFIN_URL') || '').replace(/\/$/, '');
+      jf.init(newJfUrl, cfg.get('JELLYFIN_API_KEY') || '');
+      const newTmdb = cfg.get('TMDB_API_KEY') || '';
+      tmdb.init(newTmdb);
+      console.log('[config] Saved and reloaded:', result.saved.join(', '));
+    }
+    return json(res, result);
+  }
+
+  // ── CONFIG READ (public fields only) ──
+  if (pathname === '/api/config/public') {
+    return json(res, cfg.getPublicConfig());
+  }
+
   // ── CLIENT CONFIG ──
   if (pathname === '/api/config') {
     const session = auth.getSessionFromRequest(req);
     if (!session) return json(res, { error: 'Unauthorized' }, 401);
-    return json(res, { jellyfinUrl: JELLYFIN_URL, version: VERSION });
+    return json(res, { jellyfinUrl: cfg.get('JELLYFIN_URL') || JELLYFIN_URL, version: VERSION, ...cfg.getPublicConfig() });
   }
 
   // ── STREAM URL (returns actual Jellyfin URL for HLS.js) ──

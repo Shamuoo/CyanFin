@@ -1,3 +1,4 @@
+const cfg = require('../config');
 const https = require('https');
 const http = require('http');
 const url = require('url');
@@ -68,13 +69,13 @@ function discordPost(webhookUrl, payload) {
 }
 
 async function handleIntegrations(pathname, query, body, session) {
-  const JELLYSEERR_URL = process.env.JELLYSEERR_URL || '';
-  const JELLYSEERR_KEY = process.env.JELLYSEERR_API_KEY || '';
-  const RADARR_URL = process.env.RADARR_URL || '';
-  const RADARR_KEY = process.env.RADARR_API_KEY || '';
-  const SONARR_URL = process.env.SONARR_URL || '';
-  const SONARR_KEY = process.env.SONARR_API_KEY || '';
-  const DISCORD_WEBHOOK = process.env.DISCORD_WEBHOOK_URL || '';
+  const JELLYSEERR_URL = cfg.get('JELLYSEERR_URL');
+  const JELLYSEERR_KEY = cfg.get('JELLYSEERR_API_KEY');
+  const RADARR_URL = cfg.get('RADARR_URL');
+  const RADARR_KEY = cfg.get('RADARR_API_KEY');
+  const SONARR_URL = cfg.get('SONARR_URL');
+  const SONARR_KEY = cfg.get('SONARR_API_KEY');
+  const DISCORD_WEBHOOK = cfg.get('DISCORD_WEBHOOK_URL');
 
   // ── Jellyseerr ──
   if (pathname === '/api/integrations/jellyseerr-status') {
@@ -172,12 +173,12 @@ async function handleIntegrations(pathname, query, body, session) {
   // ── Integration config status ──
   if (pathname === '/api/integrations/config') {
     return {
-      jellyseerr: !!JELLYSEERR_URL,
-      radarr: !!RADARR_URL,
-      sonarr: !!SONARR_URL,
-      discord: !!DISCORD_WEBHOOK,
-      lastfm: !!process.env.LASTFM_API_KEY,
-      anthropic: !!process.env.ANTHROPIC_API_KEY,
+      jellyseerr: !!(cfg.get('JELLYSEERR_URL') && cfg.get('JELLYSEERR_API_KEY')),
+      radarr: !!(cfg.get('RADARR_URL') && cfg.get('RADARR_API_KEY')),
+      sonarr: !!(cfg.get('SONARR_URL') && cfg.get('SONARR_API_KEY')),
+      discord: !!cfg.get('DISCORD_WEBHOOK_URL'),
+      anthropic: !!cfg.get('ANTHROPIC_API_KEY'),
+      tmdb: !!cfg.get('TMDB_API_KEY'),
     };
   }
 

@@ -78,10 +78,29 @@
         </div>
       </div>
 
+      <!-- Integrations -->
+      <div style="margin-bottom:20px">
+        <div style="font-size:8px;font-weight:700;letter-spacing:0.25em;text-transform:uppercase;color:var(--accent);opacity:0.6;margin-bottom:12px">Integrations <span style="opacity:0.4;font-weight:400">(all optional)</span></div>
+        <div style="display:flex;flex-direction:column;gap:10px">
+          <div><label style="display:block;font-size:8px;letter-spacing:0.15em;text-transform:uppercase;color:var(--muted);margin-bottom:4px">Jellyseerr URL</label><input class="settings-input" id="ob-jellyseerr-url" style="width:100%;font-size:12px;padding:8px 10px" type="text" placeholder="http://192.168.1.x:5055" /></div>
+          <div><label style="display:block;font-size:8px;letter-spacing:0.15em;text-transform:uppercase;color:var(--muted);margin-bottom:4px">Jellyseerr API Key</label><input class="settings-input" id="ob-jellyseerr-key" style="width:100%;font-size:12px;padding:8px 10px" type="password" placeholder="API key from Jellyseerr settings" /></div>
+          <div><label style="display:block;font-size:8px;letter-spacing:0.15em;text-transform:uppercase;color:var(--muted);margin-bottom:4px">Radarr URL</label><input class="settings-input" id="ob-radarr-url" style="width:100%;font-size:12px;padding:8px 10px" type="text" placeholder="http://192.168.1.x:7878" /></div>
+          <div><label style="display:block;font-size:8px;letter-spacing:0.15em;text-transform:uppercase;color:var(--muted);margin-bottom:4px">Radarr API Key</label><input class="settings-input" id="ob-radarr-key" style="width:100%;font-size:12px;padding:8px 10px" type="password" placeholder="API key from Radarr settings" /></div>
+          <div><label style="display:block;font-size:8px;letter-spacing:0.15em;text-transform:uppercase;color:var(--muted);margin-bottom:4px">Sonarr URL</label><input class="settings-input" id="ob-sonarr-url" style="width:100%;font-size:12px;padding:8px 10px" type="text" placeholder="http://192.168.1.x:8989" /></div>
+          <div><label style="display:block;font-size:8px;letter-spacing:0.15em;text-transform:uppercase;color:var(--muted);margin-bottom:4px">Sonarr API Key</label><input class="settings-input" id="ob-sonarr-key" style="width:100%;font-size:12px;padding:8px 10px" type="password" placeholder="API key from Sonarr settings" /></div>
+          <div><label style="display:block;font-size:8px;letter-spacing:0.15em;text-transform:uppercase;color:var(--muted);margin-bottom:4px">Discord Webhook URL</label><input class="settings-input" id="ob-discord" style="width:100%;font-size:12px;padding:8px 10px" type="text" placeholder="https://discord.com/api/webhooks/..." /></div>
+        </div>
+      </div>
+
       <div style="font-size:9px;color:var(--muted);line-height:1.7;padding:12px;background:var(--subtle);border-radius:var(--radius);margin-bottom:24px">
-        <strong style="color:var(--accent);opacity:0.7">Note:</strong> API keys must be set as Docker environment variables to take effect. This screen saves your preferences locally.
-        <br>Add to your Docker run command:<br>
-        <code style="font-size:8px;color:var(--cream);opacity:0.5">-e TMDB_API_KEY="..." -e ANTHROPIC_API_KEY="..."</code>
+        <strong style="color:var(--accent);opacity:0.7">⚠ Important:</strong> These values are saved locally in your browser and shown here for reference only. To actually enable integrations, set them as Docker environment variables:<br><br>
+        <code style="font-size:8px;color:var(--cream);opacity:0.5;display:block;line-height:2">
+          -e JELLYSEERR_URL="..." -e JELLYSEERR_API_KEY="..."<br>
+          -e RADARR_URL="..." -e RADARR_API_KEY="..."<br>
+          -e SONARR_URL="..." -e SONARR_API_KEY="..."<br>
+          -e TMDB_API_KEY="..." -e ANTHROPIC_API_KEY="..."<br>
+          -e DISCORD_WEBHOOK_URL="..."
+        </code>
       </div>
 
       <button class="login-btn" id="ob-done">Get Started →</button>
@@ -461,6 +480,22 @@
           <option value="tv">TV</option>
           <option value="mobile">Mobile</option>
         </select>
+      </div>
+    </div>
+    <div class="settings-section">
+      <div class="settings-section-title">Integrations</div>
+      <div style="display:flex;flex-direction:column;gap:8px">
+        <div><label style="display:block;font-size:8px;letter-spacing:0.15em;text-transform:uppercase;color:var(--muted);margin-bottom:3px">Jellyseerr URL</label><input class="settings-input" id="si-jellyseerr-url" style="width:100%" type="text" placeholder="http://192.168.1.x:5055" /></div>
+        <div><label style="display:block;font-size:8px;letter-spacing:0.15em;text-transform:uppercase;color:var(--muted);margin-bottom:3px">Jellyseerr API Key</label><input class="settings-input" id="si-jellyseerr-key" style="width:100%" type="password" placeholder="••••••••" /></div>
+        <div><label style="display:block;font-size:8px;letter-spacing:0.15em;text-transform:uppercase;color:var(--muted);margin-bottom:3px">Radarr URL</label><input class="settings-input" id="si-radarr-url" style="width:100%" type="text" placeholder="http://192.168.1.x:7878" /></div>
+        <div><label style="display:block;font-size:8px;letter-spacing:0.15em;text-transform:uppercase;color:var(--muted);margin-bottom:3px">Radarr API Key</label><input class="settings-input" id="si-radarr-key" style="width:100%" type="password" placeholder="••••••••" /></div>
+        <div><label style="display:block;font-size:8px;letter-spacing:0.15em;text-transform:uppercase;color:var(--muted);margin-bottom:3px">Sonarr URL</label><input class="settings-input" id="si-sonarr-url" style="width:100%" type="text" placeholder="http://192.168.1.x:8989" /></div>
+        <div><label style="display:block;font-size:8px;letter-spacing:0.15em;text-transform:uppercase;color:var(--muted);margin-bottom:3px">Sonarr API Key</label><input class="settings-input" id="si-sonarr-key" style="width:100%" type="password" placeholder="••••••••" /></div>
+        <div><label style="display:block;font-size:8px;letter-spacing:0.15em;text-transform:uppercase;color:var(--muted);margin-bottom:3px">TMDB API Key</label><input class="settings-input" id="si-tmdb" style="width:100%" type="password" placeholder="••••••••" /></div>
+        <div><label style="display:block;font-size:8px;letter-spacing:0.15em;text-transform:uppercase;color:var(--muted);margin-bottom:3px">Anthropic API Key</label><input class="settings-input" id="si-anthropic" style="width:100%" type="password" placeholder="sk-ant-..." /></div>
+        <div><label style="display:block;font-size:8px;letter-spacing:0.15em;text-transform:uppercase;color:var(--muted);margin-bottom:3px">Discord Webhook URL</label><input class="settings-input" id="si-discord" style="width:100%" type="text" placeholder="https://discord.com/api/webhooks/..." /></div>
+        <button class="qa-btn" id="si-save" style="margin-top:4px">💾 Save Integrations</button>
+        <div id="si-status" style="font-size:9px;color:var(--muted);min-height:14px;font-style:italic"></div>
       </div>
     </div>
     <div class="settings-section">

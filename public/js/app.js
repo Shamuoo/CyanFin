@@ -228,6 +228,79 @@ function initSettings() {
   document.getElementById('settings-close').addEventListener('click', () => { document.getElementById('settings-panel').classList.remove('open'); playSound('click'); });
   initSettingsPanel();
   initLayoutMode();
+  initSettingsIntegrations();
+}
+
+async function initSettingsIntegrations() {
+  // Load current config from server when settings opens
+  document.getElementById('settings-btn').addEventListener('click', async () => {
+    try {
+      const pub = await API.configPublic();
+      // Pre-fill URLs (we show URLs, not keys for security)
+      const urlFields = {
+        'si-jellyseerr-url': pub.jellyseerrUrl || '',
+        'si-radarr-url': pub.radarrUrl || '',
+        'si-sonarr-url': pub.sonarrUrl || '',
+      };
+      Object.entries(urlFields).forEach(([id, val]) => {
+        const el = document.getElementById(id); if (el && val) el.value = val;
+      });
+      // Show configured status for key fields
+      ['si-jellyseerr-key','si-radarr-key','si-sonarr-key','si-tmdb','si-anthropic','si-discord'].forEach(id => {
+        const el = document.getElementById(id);
+        if (el && !el.value) el.placeholder = pub.hasJellyseerr && id.includes('jellyseerr') ? '✓ Configured' :
+          pub.hasRadarr && id.includes('radarr') ? '✓ Configured' :
+          pub.hasSonarr && id.includes('sonarr') ? '✓ Configured' :
+          pub.hasTmdb && id.includes('tmdb') ? '✓ Configured' :
+          pub.hasAnthropic && id.includes('anthropic') ? '✓ Configured' :
+          pub.hasDiscord && id.includes('discord') ? '✓ Configured' : el.placeholder;
+      });
+    } catch(e) {}
+  }, { once: false });
+
+  // Save button
+  const saveBtn = document.getElementById('si-save');
+  const status = document.getElementById('si-status');
+  if (!saveBtn) return;
+  saveBtn.addEventListener('click', async () => {
+    saveBtn.textContent = '⏳ Saving…'; saveBtn.disabled = true;
+    const fields = {
+      'si-jellyseerr-url':  'JELLYSEERR_URL',
+      'si-jellyseerr-key':  'JELLYSEERR_API_KEY',
+      'si-radarr-url':      'RADARR_URL',
+      'si-radarr-key':      'RADARR_API_KEY',
+      'si-sonarr-url':      'SONARR_URL',
+      'si-sonarr-key':      'SONARR_API_KEY',
+      'si-tmdb':            'TMDB_API_KEY',
+      'si-anthropic':       'ANTHROPIC_API_KEY',
+      'si-discord':         'DISCORD_WEBHOOK_URL',
+    };
+    const data = {};
+    Object.entries(fields).forEach(([id, key]) => {
+      const el = document.getElementById(id);
+      if (el && el.value.trim()) data[key] = el.value.trim();
+    });
+    try {
+      const result = await API.saveConfig(data);
+      if (result.success) {
+        status.textContent = '✓ Saved — ' + (result.saved || []).length + ' values updated';
+        status.style.color = 'var(--green)';
+        showToast('✅', 'Integration settings saved');
+        // Clear key fields for security
+        ['si-jellyseerr-key','si-radarr-key','si-sonarr-key','si-tmdb','si-anthropic'].forEach(id => {
+          const el = document.getElementById(id); if (el) el.value = '';
+        });
+      } else {
+        status.textContent = '✗ ' + (result.error || 'Save failed');
+        status.style.color = 'var(--red)';
+      }
+    } catch(e) {
+      status.textContent = '✗ ' + e.message;
+      status.style.color = 'var(--red)';
+    }
+    saveBtn.textContent = '💾 Save Integrations'; saveBtn.disabled = false;
+    setTimeout(() => { status.textContent = ''; }, 5000);
+  });
 }
 
 function initLayoutMode() {
@@ -282,7 +355,52 @@ function initOnboarding() {
       applyLayoutMode(el.dataset.mode, localStorage.getItem('cf-layout')||'desktop');
     });
   });
-  document.getElementById('ob-done').addEventListener('click', () => { localStorage.setItem('cf-onboarded','1'); ob.style.display='none'; });
+  // Pre-fill saved values
+  const obFields = {
+    'ob-jellyseerr-url': 'cf-jellyseerr-url', 'ob-jellyseerr-key': 'cf-jellyseerr-key',
+    'ob-radarr-url': 'cf-radarr-url', 'ob-radarr-key': 'cf-radarr-key',
+    'ob-sonarr-url': 'cf-sonarr-url', 'ob-sonarr-key': 'cf-sonarr-key',
+    'ob-discord': 'cf-discord', 'ob-tmdb': 'cf-tmdb', 'ob-anthropic': 'cf-anthropic',
+  };
+  Object.entries(obFields).forEach(([fieldId, storageKey]) => {
+    const el = document.getElementById(fieldId);
+    if (el) {
+      const saved = localStorage.getItem(storageKey);
+      if (saved) el.value = saved;
+      el.addEventListener('input', () => localStorage.setItem(storageKey, el.value));
+    }
+  });
+
+  const obDoneBtn = document.getElementById('ob-done');
+  obDoneBtn.addEventListener('click', async () => {
+    obDoneBtn.textContent = 'Saving…'; obDoneBtn.disabled = true;
+    // Collect all values
+    const configData = {
+      JELLYFIN_URL: (document.getElementById('ob-jellyfin-url') || {}).value || '',
+      TMDB_API_KEY: (document.getElementById('ob-tmdb') || {}).value || '',
+      ANTHROPIC_API_KEY: (document.getElementById('ob-anthropic') || {}).value || '',
+      JELLYSEERR_URL: (document.getElementById('ob-jellyseerr-url') || {}).value || '',
+      JELLYSEERR_API_KEY: (document.getElementById('ob-jellyseerr-key') || {}).value || '',
+      RADARR_URL: (document.getElementById('ob-radarr-url') || {}).value || '',
+      RADARR_API_KEY: (document.getElementById('ob-radarr-key') || {}).value || '',
+      SONARR_URL: (document.getElementById('ob-sonarr-url') || {}).value || '',
+      SONARR_API_KEY: (document.getElementById('ob-sonarr-key') || {}).value || '',
+      DISCORD_WEBHOOK_URL: (document.getElementById('ob-discord') || {}).value || '',
+    };
+    // Filter out empty values
+    Object.keys(configData).forEach(k => { if (!configData[k]) delete configData[k]; });
+    try {
+      if (Object.keys(configData).length > 0) {
+        await API.saveConfig(configData);
+      }
+    } catch(e) {
+      // If save fails (e.g. not logged in yet), that's fine — they can set in settings later
+      console.warn('Config save failed:', e.message);
+    }
+    localStorage.setItem('cf-onboarded','1');
+    ob.style.display='none';
+    obDoneBtn.textContent = 'Get Started →'; obDoneBtn.disabled = false;
+  });
 }
 
 // ── Metadata editor ──

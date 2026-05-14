@@ -13,6 +13,8 @@ const API = {
   logout() { return this.get('/api/auth/logout'); },
   me() { return this.get('/api/auth/me'); },
   config() { return this.get('/api/config'); },
+  configPublic() { return this.get('/api/config/public'); },
+  saveConfig(data) { return this.post('/api/config/save', data); },
   nowPlaying() { return this.get('/api/now-playing'); },
   recentlyAdded() { return this.get('/api/recently-added'); },
   continueWatching() { return this.get('/api/continue-watching'); },
