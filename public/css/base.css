@@ -141,7 +141,7 @@ a { color: inherit; text-decoration: none; }
 
 /* ── Poster cards ── */
 .card-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); gap: 16px; padding: 24px; }
-.card-row { display: flex; gap: 12px; padding: 8px 28px 16px; overflow-x: auto; scrollbar-width: none; }
+.card-row { display: flex; gap: 12px; padding: 8px 32px 16px; overflow-x: auto; scrollbar-width: none; }
 .card-row::-webkit-scrollbar { display: none; }
 .card { flex-shrink: 0; width: 110px; cursor: pointer; position: relative; }
 .card-grid .card { width: auto; }
@@ -167,7 +167,7 @@ a { color: inherit; text-decoration: none; }
 
 /* ── Section ── */
 .section { margin-bottom: 32px; }
-.section-header { display: flex; align-items: center; justify-content: space-between; padding: 0 28px 10px; }
+.section-header { display: flex; align-items: center; justify-content: space-between; padding: 0 32px 10px; }
 .section-title { font-family: var(--font-display); font-size: 11px; letter-spacing: 0.4em; color: var(--cream); opacity: 0.45; text-transform: uppercase; }
 .section-more { font-size: 9px; letter-spacing: 0.15em; color: var(--accent); opacity: 0.5; cursor: pointer; text-transform: uppercase; border: none; background: none; }
 .section-more:hover { opacity: 1; }
@@ -182,9 +182,9 @@ a { color: inherit; text-decoration: none; }
 .home-hero-title { font-family: var(--font-display); font-size: clamp(24px, 4vw, 42px); letter-spacing: 0.1em; color: var(--cream); margin-bottom: 6px; }
 .home-hero-meta { font-size: 11px; color: var(--muted); }
 .home-content { padding-top: 8px; padding-bottom: 48px; }
-.stats-strip { display: flex; align-items: center; gap: 0; padding: 0 28px 20px; background: transparent; }
+.stats-strip { display: flex; align-items: center; gap: 0; padding: 0 32px 20px; background: transparent; }
 .stat-item { display: flex; align-items: center; gap: 6px; padding: 6px 16px; border-right: 1px solid var(--border2); }
-.stat-item:first-child { padding-left: 0; }
+.stat-item:first-child { padding-left: 0; margin-left: 0; }
 .stat-num { font-family: var(--font-display); font-size: 16px; color: var(--accent); opacity: 0.6; line-height: 1; }
 .stat-label { font-size: 9px; letter-spacing: 0.15em; text-transform: uppercase; color: var(--muted); opacity: 0.5; }
 .weather-pill { margin-left: auto; display: flex; align-items: center; gap: 6px; padding: 4px 12px; background: var(--subtle); border: 1px solid var(--border2); border-radius: 20px; font-size: 11px; color: var(--muted); }
@@ -523,8 +523,8 @@ a { color: inherit; text-decoration: none; }
 }
 
 @media (min-width: 1600px) {
-  .card-row { padding: 8px 40px 16px; }
-  .section-header { padding: 0 40px 10px; }
-  .stats-strip { padding: 0 40px 20px; }
+  .card-row { padding: 8px 48px 16px; }
+  .section-header { padding: 0 48px 10px; }
+  .stats-strip { padding: 0 48px 20px; }
   .card { width: 130px; }
 }

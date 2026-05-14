@@ -177,7 +177,7 @@ const server = http.createServer(async (req, res) => {
     if (!session) return json(res, { error: 'Unauthorized' }, 401);
     const itemId = parsed.query.id;
     if (!itemId) return json(res, { error: 'No id' }, 400);
-    return json(res, { url: jf.streamUrl(itemId, session.token) });
+    return json(res, { url: jf.streamUrl(itemId, session.token), directUrl: jf.directUrl(itemId, session.token) });
   }
 
   // ── REQUIRE AUTH FOR API ──

@@ -354,7 +354,7 @@ async function handleApi(pathname, query, session) {
     return {
       latency, jellyfinUrl: process.env.JELLYFIN_URL,
       cyanFinVersion: '0.9.0',
-      github: gh ? { latestRelease: gh.tag_name, releaseName: gh.name, publishedAt: gh.published_at, isLatest: gh.tag_name === 'v0.9.0' } : null,
+      github: (gh && gh.tag_name) ? { latestRelease: gh.tag_name, releaseName: gh.name, publishedAt: gh.published_at, isLatest: gh.tag_name === 'v0.9.0' } : null,
       serverName: info.ServerName, version: info.Version, os: info.OperatingSystem, arch: info.SystemArchitecture,
       localAddress: info.LocalAddress, wanAddress: info.WanAddress, hasUpdate: info.HasUpdateAvailable,
       activeSessions: active.length, totalSessions: (sessions||[]).length,
