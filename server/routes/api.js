@@ -114,6 +114,7 @@ function mapItem(i, token) {
     director: (people.find(p => p.Type === 'Director') || {}).Name || null,
     posterUrl: jf.imageUrl(i.Id, 'Primary', { token }),
     backdropUrl: jf.imageUrl(i.Id, 'Backdrop/0', { token, maxWidth: 1920 }),
+    backdropCount: (i.BackdropImageTags || []).length,
     thumbUrl: i.ImageTags && i.ImageTags.Thumb ? jf.imageUrl(i.Id, 'Thumb', { token }) : null,
     logoUrl: i.ImageTags && i.ImageTags.Logo ? jf.imageUrl(i.Id, 'Logo', { token }) : null,
     userData: i.UserData || null,
@@ -301,8 +302,23 @@ async function handleApi(pathname, query, session) {
   // Item detail
   if (pathname.match(/^\/api\/items\/[^/]+$/)) {
     const itemId = pathname.split('/')[3];
-    const data = await jf.get(`/Items/${itemId}?userId=${userId}&fields=Overview,Taglines,Genres,OfficialRating,CommunityRating,People,MediaStreams,MediaSources,Studios,Tags,ExternalUrls,ProviderIds`, token);
-    return mapItem(data, token);
+    const [data, extras] = await Promise.all([
+      jf.get(`/Items/${itemId}?userId=${userId}&fields=Overview,Taglines,Genres,OfficialRating,CommunityRating,People,MediaStreams,MediaSources,Studios,Tags,ExternalUrls,ProviderIds,BackdropImageTags,ImageTags`, token),
+      jf.get(`/Users/${userId}/Items?ParentId=${itemId}&IncludeItemTypes=Video&Recursive=false&fields=Overview,MediaStreams`, token).catch(() => ({ Items: [] })),
+    ]);
+    const mapped = mapItem(data, token);
+    // All backdrop URLs
+    mapped.backdropUrls = (data.BackdropImageTags || []).map((_, idx) =>
+      jf.imageUrl(data.Id, `Backdrop/${idx}`, { token, maxWidth: 1920 })
+    );
+    if (!mapped.backdropUrls.length && mapped.backdropUrl) mapped.backdropUrls = [mapped.backdropUrl];
+    // Extras (behind the scenes, trailers, etc)
+    mapped.extras = (extras.Items || []).map(e => ({
+      id: e.Id, title: e.Name, type: e.ExtraType || e.Type,
+      runtime: e.RunTimeTicks,
+      thumbUrl: e.ImageTags && e.ImageTags.Primary ? jf.imageUrl(e.Id, 'Primary', { token, maxWidth: 400 }) : null,
+    }));
+    return mapped;
   }
 
   // Weather
