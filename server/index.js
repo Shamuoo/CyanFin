@@ -18,7 +18,7 @@ cfg.loadConfig();
 const JELLYFIN_URL = (cfg.get('JELLYFIN_URL') || '').replace(/\/$/, '');
 const JELLYFIN_API_KEY = cfg.get('JELLYFIN_API_KEY') || '';
 const TMDB_API_KEY = cfg.get('TMDB_API_KEY') || '';
-const VERSION = '0.10.2';
+const VERSION = '0.10.3';
 
 if (!JELLYFIN_URL) console.warn('[warn] JELLYFIN_URL not set');
 

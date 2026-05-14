@@ -96,10 +96,12 @@ docker run -d \
   --name cyanfin \
   --restart unless-stopped \
   -p 3000:3000 \
+  -v /your/appdata/cyanfin/data:/app/data \
   -e JELLYFIN_URL="http://your-jellyfin-ip:8096" \
-  -e TMDB_API_KEY="your_tmdb_key" \
   cyanfin
 ```
+
+> **Tip:** The `-v` mount persists your integration settings. Without it, settings saved in the UI are lost on container restart. API keys can be set in the UI after first login — no need to add them all to `docker run`.
 
 Open `http://your-server-ip:3000` and sign in with your Jellyfin username and password.
 
@@ -140,6 +142,7 @@ git clone https://github.com/Shamuoo/CyanFin.git .
 docker build -t cyanfin .
 docker run -d --name cyanfin --restart unless-stopped \
   -p 3001:3000 \
+  -v /mnt/user/appdata/cyanfin/data:/app/data \
   -e JELLYFIN_URL="http://192.168.1.x:8096" \
   cyanfin
 ```
@@ -161,6 +164,8 @@ docker run -d --name cyanfin --restart unless-stopped \
 | `SONARR_API_KEY` | No | Sonarr API key |
 | `DISCORD_WEBHOOK_URL` | No | Discord webhook — enables share button on detail pages |
 | `PORT` | No | Port inside container (default: `3000`) |
+
+> **All integration keys can also be set via the UI** (Settings → Integrations) and are saved to `/app/data/config.json`. Env vars take priority over UI-saved values. Mount `/app/data` as a volume to persist UI-saved settings across container restarts.
 
 No `JELLYFIN_API_KEY` needed — CyanFin authenticates as the logged-in user.
 

@@ -305,7 +305,7 @@ async function handleApi(pathname, query, session) {
     const itemId = pathname.split('/')[3];
     const [data, extras] = await Promise.all([
       jf.get(`/Items/${itemId}?userId=${userId}&fields=Overview,Taglines,Genres,OfficialRating,CommunityRating,People,MediaStreams,MediaSources,Studios,Tags,ExternalUrls,ProviderIds,BackdropImageTags,ImageTags`, token),
-      jf.get(`/Users/${userId}/Items?ParentId=${itemId}&IncludeItemTypes=Video&Recursive=false&fields=Overview,MediaStreams`, token).catch(() => ({ Items: [] })),
+      jf.get(`/Users/${userId}/Items/${itemId}/SpecialFeatures`, token).catch(() => []),
     ]);
     const mapped = mapItem(data, token);
     // All backdrop URLs
@@ -314,7 +314,7 @@ async function handleApi(pathname, query, session) {
     );
     if (!mapped.backdropUrls.length && mapped.backdropUrl) mapped.backdropUrls = [mapped.backdropUrl];
     // Extras (behind the scenes, trailers, etc)
-    mapped.extras = (extras.Items || []).map(e => ({
+    mapped.extras = (Array.isArray(extras) ? extras : (extras.Items || [])).map(e => ({
       id: e.Id, title: e.Name, type: e.ExtraType || e.Type,
       runtime: e.RunTimeTicks,
       thumbUrl: e.ImageTags && e.ImageTags.Primary ? jf.imageUrl(e.Id, 'Primary', { token, maxWidth: 400 }) : null,

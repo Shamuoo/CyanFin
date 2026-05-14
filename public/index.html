@@ -151,7 +151,6 @@
       <div id="hero-dots"></div>
       <img id="hero-side-poster" src="" alt="" />
       <div class="home-hero-content">
-        <div id="hero-ticker"><div id="hero-ticker-inner"></div></div>
         <img id="hero-logo" src="" alt="" />
         <div class="home-hero-label" id="hero-label">Recently Added</div>
         <div class="home-hero-title" id="hero-title">—</div>
@@ -162,6 +161,7 @@
         </div>
       </div>
     </div>
+    <div id="hero-ticker"><div id="hero-ticker-inner"></div></div>
     <div class="home-content" id="home-content">
       <div class="stats-strip" id="stats-strip">
         <div class="stat-item"><div class="stat-num stat-movies" id="stat-movies">—</div><div class="stat-label">Movies</div></div>
@@ -411,33 +411,46 @@
     <div id="search-results"></div>
   </div>
 
-  <!-- Detail modal -->
+  <!-- Detail modal - Jellyflix-style -->
   <div id="detail-modal">
     <div id="detail-card">
+
+      <!-- Backdrop hero -->
       <div id="detail-poster-wrap">
         <div id="detail-backdrop"></div>
-        <div id="detail-poster-gradient"></div>
-        <img id="detail-poster" src="" alt="" />
+        <div id="detail-backdrop-vignette"></div>
+        <div id="detail-backdrop-dots"></div>
         <button class="detail-close" id="detail-close">✕</button>
       </div>
+
+      <!-- Poster + info row -->
+      <div id="detail-info-row">
+        <img id="detail-poster-thumb" src="" alt="" />
+        <div id="detail-info-text">
+          <img id="detail-logo" src="" alt="" />
+          <div class="detail-type" id="detail-type"></div>
+          <div class="detail-title" id="detail-title"></div>
+          <div class="detail-tagline" id="detail-tagline"></div>
+          <div class="detail-chips" id="detail-chips"></div>
+          <div class="detail-actions" style="margin-top:14px">
+            <button class="action-btn action-btn-primary" id="detail-play-btn" style="display:none">▶ Play</button>
+            <button class="action-btn action-btn-secondary" id="detail-edit-btn">✏ Edit</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Scrollable body -->
       <div id="detail-body">
-        <img id="detail-logo" src="" alt="" />
-        <div class="detail-type" id="detail-type"></div>
-        <div class="detail-title" id="detail-title"></div>
-        <div class="detail-tagline" id="detail-tagline"></div>
-        <div class="detail-chips" id="detail-chips"></div>
         <div class="detail-overview" id="detail-overview"></div>
-        <div class="detail-section-label" id="detail-cast-label">Cast</div>
+        <div class="detail-crew" id="detail-crew" style="margin-top:8px"></div>
+        <div class="detail-section-label" id="detail-cast-label" style="margin-top:20px">Cast</div>
         <div class="cast-grid" id="detail-cast"></div>
-        <div class="detail-crew" id="detail-crew"></div>
-        <div class="detail-trailer" id="detail-trailer">
-          <canvas id="detail-qr" width="52" height="52"></canvas>
-          <div class="detail-trailer-text">Scan to watch trailer</div>
-        </div>
-        <div class="detail-actions">
-          <button class="action-btn action-btn-primary" id="detail-play-btn" style="display:none">▶ Play</button>
-          <button class="action-btn action-btn-secondary" id="detail-edit-btn">✏ Edit</button>
-        </div>
+      </div>
+
+      <!-- Hidden legacy (kept for compat) -->
+      <div style="display:none">
+        <img id="detail-poster" src="" alt="" />
+        <div id="detail-poster-gradient"></div>
       </div>
     </div>
   </div>
