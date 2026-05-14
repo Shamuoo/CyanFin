@@ -130,6 +130,27 @@ async function handleLibrary(pathname, query, session, req) {
     return { multiVersion, has3D, only2D: only2D.slice(0, 50) };
   }
 
+  if (pathname === '/api/library/recommended-3d') {
+    const known3D = ['Avatar','How to Train Your Dragon','Life of Pi','Gravity',
+      'Pacific Rim','Prometheus','The Walk','Hugo','Doctor Strange','Jungle Book',
+      'Spider-Man','Spider-Verse','Avengers','Transformers','Alice in Wonderland',
+      'Coraline','Up','Monsters Inc','Ice Age','Mad Max','The Martian','Everest',
+      'Mission Impossible','Star Wars','Rogue One','Top Gun Maverick','Dune',
+      'Interstellar','Thor','Guardians','Black Panther','Ant-Man','Tenet',
+      'Dunkirk','1917','Blade Runner','Alita','Aquaman','Ready Player One',
+      'Jungle Cruise','Encanto','Moana','Coco','The Lion King','Aladdin','Mulan'];
+    const data = await jf.get(`/Users/${userId}/Items?IncludeItemTypes=Movie&Recursive=true&Limit=500&fields=MediaSources&SortBy=SortName`, token);
+    return (data.Items || []).filter(item => {
+      const sources = item.MediaSources || [];
+      const has3D = sources.some(s => /3d|hsbs|h-sbs|mvc/i.test(s.Name||'') || /3d|hsbs|h-sbs|mvc/i.test(s.Path||''));
+      const isKnown = known3D.some(t => item.Name && item.Name.toLowerCase().includes(t.toLowerCase()));
+      return !has3D && isKnown;
+    }).map(i => ({
+      id: i.Id, title: i.Name,
+      posterUrl: jf.imageUrl(i.Id, 'Primary', { token, maxWidth: 400 }),
+    }));
+  }
+
   if (pathname === '/api/library/music-report') {
     const [albums, tracks] = await Promise.all([
       jf.get(`/Users/${userId}/Items?IncludeItemTypes=MusicAlbum&Recursive=true&Limit=200&fields=Overview,ImageTags,ProductionYear,AlbumArtist&SortBy=SortName`, token),

@@ -80,6 +80,13 @@ export async function runVersionsScan() {
     renderLibList('ll-multi', d.multiVersion, i=>`${i.count} versions`, ()=>'lib-badge-info', ()=>[], 'No multi-version movies');
     renderLibList('ll-3d', d.has3D, i=>i.versions.join(' · '), ()=>'lib-badge-good', ()=>[], 'No 3D movies');
     renderLibList('ll-2d', d.only2D, ()=>'2D only', ()=>'lib-badge-warn', ()=>[], 'All movies have 3D');
+    // Load recommended 3D upgrades
+    try {
+      const rec = await API.get('/api/library/recommended-3d');
+      const cntEl = document.getElementById('cnt-rec3d');
+      if (cntEl) { cntEl.textContent = (rec||[]).length; cntEl.style.cssText = (rec||[]).length > 0 ? 'padding:1px 5px;border-radius:8px;font-size:8px;font-weight:700;background:rgba(201,168,76,0.15);color:var(--accent)' : ''; }
+      renderLibList('ll-rec3d', rec, ()=>'No 3D version', ()=>'lib-badge-warn', ()=>[], 'All known 3D films have 3D versions');
+    } catch(e) {}
     return d;
   } catch(e) { libLog('Versions scan failed'); return {}; }
 }
@@ -145,6 +152,7 @@ export function initLibrary() {
       this.textContent = '✓ Fixed ' + fixed; this.classList.remove('running'); this.classList.add('done');
     } catch(e) { this.textContent = '✗ Failed'; this.classList.remove('running'); }
   });
+  // Load 3D recs
   document.getElementById('qa-full-scan').addEventListener('click', async function() {
     this.classList.add('running'); this.textContent = '⏳ Scanning…';
     await runAllLibScans();

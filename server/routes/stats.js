@@ -71,19 +71,16 @@ async function handleStats(pathname, query, session) {
   // User summary stats
   if (pathname === '/api/stats/summary') {
     try {
-      const [movies, episodes, music, sessions] = await Promise.all([
+      const [movies, episodes, music] = await Promise.all([
         jf.get(`/Users/${userId}/Items?IncludeItemTypes=Movie&Filters=IsPlayed&Recursive=true&Limit=0&EnableTotalRecordCount=true`, token),
         jf.get(`/Users/${userId}/Items?IncludeItemTypes=Episode&Filters=IsPlayed&Recursive=true&Limit=0&EnableTotalRecordCount=true`, token),
         jf.get(`/Users/${userId}/Items?IncludeItemTypes=Audio&Filters=IsPlayed&Recursive=true&Limit=0&EnableTotalRecordCount=true`, token).catch(() => ({ TotalRecordCount: 0 })),
-        jf.get(`/Sessions?controllableByUserId=${userId}`, token).catch(() => []),
       ]);
       // Estimate total watch time from played counts
       const moviesWatched = movies.TotalRecordCount || 0;
       const episodesWatched = episodes.TotalRecordCount || 0;
       const estimatedHours = Math.round((moviesWatched * 100 + episodesWatched * 45) / 60);
-      return {
-        moviesWatched, episodesWatched, songsPlayed: music.TotalRecordCount || 0, estimatedHours,
-      };
+      return { moviesWatched, episodesWatched, songsPlayed: music.TotalRecordCount || 0, estimatedHours };
     } catch(e) { return { error: e.message }; }
   }
 

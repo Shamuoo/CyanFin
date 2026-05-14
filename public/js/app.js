@@ -229,6 +229,20 @@ function initSettings() {
   initSettingsPanel();
   initLayoutMode();
   initSettingsIntegrations();
+  // Music tab toggle
+  const musicToggle = document.getElementById('s-music');
+  const musicNav = document.querySelector('.nav-link[data-view="music"]');
+  if (musicToggle && musicNav) {
+    const showMusic = localStorage.getItem('cf-show-music') !== 'false';
+    if (!showMusic) { musicToggle.classList.remove('on'); musicNav.style.display = 'none'; }
+    musicToggle.addEventListener('click', () => {
+      musicToggle.classList.toggle('on');
+      const show = musicToggle.classList.contains('on');
+      localStorage.setItem('cf-show-music', show);
+      if (musicNav) musicNav.style.display = show ? '' : 'none';
+      playSound('click');
+    });
+  }
 }
 
 async function initSettingsIntegrations() {
@@ -300,6 +314,26 @@ async function initSettingsIntegrations() {
     }
     saveBtn.textContent = '💾 Save Integrations'; saveBtn.disabled = false;
     setTimeout(() => { status.textContent = ''; }, 5000);
+  });
+
+  // Test connection buttons
+  const tests = [
+    ['si-test-jellyseerr','jellyseerr'],['si-test-radarr','radarr'],
+    ['si-test-sonarr','sonarr'],['si-test-tmdb','tmdb'],
+    ['si-test-anthropic','anthropic'],['si-test-discord','discord'],
+  ];
+  tests.forEach(([btnId, service]) => {
+    const btn = document.getElementById(btnId); if (!btn) return;
+    btn.addEventListener('click', async () => {
+      btn.textContent = '⏳'; btn.disabled = true;
+      try {
+        const r = await API.get('/api/integrations/test?service=' + service);
+        if (r.ok) { btn.textContent = '✓ ' + (r.message || 'OK'); btn.style.color = 'var(--green)'; }
+        else { btn.textContent = '✗ ' + (r.error || 'Failed'); btn.style.color = 'var(--red)'; }
+      } catch(e) { btn.textContent = '✗ Error'; btn.style.color = 'var(--red)'; }
+      btn.disabled = false;
+      setTimeout(() => { btn.textContent = 'Test ' + service.charAt(0).toUpperCase() + service.slice(1); btn.style.color = ''; }, 5000);
+    });
   });
 }
 

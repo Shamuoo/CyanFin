@@ -112,11 +112,12 @@ function mapItem(i, token) {
       id: p.Id, name: p.Name, role: p.Role, imageTag: p.PrimaryImageTag || null,
     })),
     director: (people.find(p => p.Type === 'Director') || {}).Name || null,
-    posterUrl: jf.imageUrl(i.Id, 'Primary', { token }),
+    posterUrl: jf.imageUrl(i.Id, 'Primary', { token, maxWidth: 800 }),
     backdropUrl: jf.imageUrl(i.Id, 'Backdrop/0', { token, maxWidth: 1920 }),
+    backdropUrl2: jf.imageUrl(i.Id, 'Backdrop/1', { token, maxWidth: 1920 }),
     backdropCount: (i.BackdropImageTags || []).length,
     thumbUrl: i.ImageTags && i.ImageTags.Thumb ? jf.imageUrl(i.Id, 'Thumb', { token }) : null,
-    logoUrl: i.ImageTags && i.ImageTags.Logo ? jf.imageUrl(i.Id, 'Logo', { token }) : null,
+    logoUrl: i.ImageTags && i.ImageTags.Logo ? jf.imageUrl(i.Id, 'Logo', { token, maxWidth: 600 }) : null,
     userData: i.UserData || null,
   };
 }
@@ -457,7 +458,7 @@ async function handleApi(pathname, query, session) {
     const active = (sessions||[]).filter(s=>s.NowPlayingItem);
     return {
       latency, jellyfinUrl: process.env.JELLYFIN_URL,
-      cyanFinVersion: '0.9.0',
+      cyanFinVersion: process.env.CYANFIN_VERSION || '0.10.1',
       github: (gh && gh.tag_name) ? { latestRelease: gh.tag_name, releaseName: gh.name, publishedAt: gh.published_at, isLatest: gh.tag_name === 'v0.9.0' } : null,
       serverName: info.ServerName, version: info.Version, os: info.OperatingSystem, arch: info.SystemArchitecture,
       localAddress: info.LocalAddress, wanAddress: info.WanAddress, hasUpdate: info.HasUpdateAvailable,

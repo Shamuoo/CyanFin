@@ -182,6 +182,55 @@ async function handleIntegrations(pathname, query, body, session) {
     };
   }
 
+  // ── Test connections ──
+  if (pathname === '/api/integrations/test') {
+    const service = query.service;
+    try {
+      if (service === 'jellyseerr') {
+        if (!cfg.get('JELLYSEERR_URL') || !cfg.get('JELLYSEERR_API_KEY')) return { ok: false, error: 'Not configured' };
+        const d = await integrationGet(cfg.get('JELLYSEERR_URL'), cfg.get('JELLYSEERR_API_KEY'), '/api/v1/status');
+        return { ok: true, message: 'Jellyseerr v' + (d.version || '?') };
+      }
+      if (service === 'radarr') {
+        if (!cfg.get('RADARR_URL') || !cfg.get('RADARR_API_KEY')) return { ok: false, error: 'Not configured' };
+        const d = await integrationGet(cfg.get('RADARR_URL'), cfg.get('RADARR_API_KEY'), '/api/v3/system/status');
+        return { ok: true, message: 'Radarr v' + (d.version || '?') };
+      }
+      if (service === 'sonarr') {
+        if (!cfg.get('SONARR_URL') || !cfg.get('SONARR_API_KEY')) return { ok: false, error: 'Not configured' };
+        const d = await integrationGet(cfg.get('SONARR_URL'), cfg.get('SONARR_API_KEY'), '/api/v3/system/status');
+        return { ok: true, message: 'Sonarr v' + (d.version || '?') };
+      }
+      if (service === 'tmdb') {
+        if (!cfg.get('TMDB_API_KEY')) return { ok: false, error: 'Not configured' };
+        const https = require('https');
+        const d = await new Promise((resolve, reject) => {
+          const req = https.request({ hostname: 'api.themoviedb.org', path: '/3/configuration?api_key=' + cfg.get('TMDB_API_KEY'), method: 'GET', headers: { Accept: 'application/json' }, timeout: 6000 }, res => {
+            let data = ''; res.on('data', c => data += c); res.on('end', () => { try { resolve({ status: res.statusCode, data: JSON.parse(data) }); } catch(e) { resolve({ status: res.statusCode }); } });
+          }); req.on('error', reject); req.on('timeout', () => { req.destroy(); reject(new Error('Timeout')); }); req.end();
+        });
+        return d.status === 200 ? { ok: true, message: 'TMDB connected' } : { ok: false, error: 'Invalid API key' };
+      }
+      if (service === 'anthropic') {
+        if (!cfg.get('ANTHROPIC_API_KEY')) return { ok: false, error: 'Not configured' };
+        const https = require('https');
+        const body = JSON.stringify({ model: 'claude-haiku-4-5-20251001', max_tokens: 10, messages: [{ role: 'user', content: 'ping' }] });
+        const d = await new Promise((resolve, reject) => {
+          const req = https.request({ hostname: 'api.anthropic.com', path: '/v1/messages', method: 'POST', headers: { 'Content-Type': 'application/json', 'anthropic-version': '2023-06-01', 'x-api-key': cfg.get('ANTHROPIC_API_KEY'), 'Content-Length': Buffer.byteLength(body) }, timeout: 10000 }, res => {
+            let data = ''; res.on('data', c => data += c); res.on('end', () => { try { resolve({ status: res.statusCode, data: JSON.parse(data) }); } catch(e) { resolve({ status: res.statusCode }); } });
+          }); req.on('error', reject); req.on('timeout', () => { req.destroy(); reject(new Error('Timeout')); }); req.write(body); req.end();
+        });
+        return d.status === 200 ? { ok: true, message: 'Claude connected' } : { ok: false, error: d.data && d.data.error ? d.data.error.message : 'Auth failed' };
+      }
+      if (service === 'discord') {
+        if (!cfg.get('DISCORD_WEBHOOK_URL')) return { ok: false, error: 'Not configured' };
+        const r = await discordPost(cfg.get('DISCORD_WEBHOOK_URL'), { content: '✅ CyanFin connection test' });
+        return r.status === 204 || r.status === 200 ? { ok: true, message: 'Discord webhook active' } : { ok: false, error: 'Webhook error ' + r.status };
+      }
+      return { ok: false, error: 'Unknown service: ' + service };
+    } catch(e) { return { ok: false, error: e.message }; }
+  }
+
   return null;
 }
 

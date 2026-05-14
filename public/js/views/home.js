@@ -1,4 +1,5 @@
 import API from '../api.js';
+import { openDetail } from './detail.js';
 import { playSound, get as getSetting, showToast } from '../themes.js';
 import { openDetail } from './detail.js';
 
@@ -12,25 +13,52 @@ export function initHome() {
 // ── Hero ──
 export function updateHero(item) {
   if (!item) return;
+  window._heroItem = item;
   const bg = document.getElementById('hero-bg');
   if (bg) bg.style.backgroundImage = `url('${item.backdropUrl || item.posterUrl}')`;
+  // Side poster
+  const sp = document.getElementById('hero-side-poster');
+  if (sp) { sp.src = item.posterUrl || ''; sp.classList.toggle('visible', !!item.posterUrl); }
+  // Logo
+  const logo = document.getElementById('hero-logo');
+  if (logo) { if (item.logoUrl) { logo.src = item.logoUrl; logo.classList.add('visible'); } else logo.classList.remove('visible'); }
   const titleEl = document.getElementById('hero-title');
-  if (titleEl) titleEl.textContent = item.title || '';
+  if (titleEl) titleEl.textContent = item.logoUrl ? '' : (item.title || ''); // hide text title if logo shown
   const metaEl = document.getElementById('hero-meta');
-  if (metaEl) metaEl.textContent = [item.year, item.genre, item.rating, item.score ? `★ ${parseFloat(item.score).toFixed(1)}` : ''].filter(Boolean).join(' · ');
+  if (metaEl) metaEl.textContent = [item.year, item.genre, item.rating, item.score ? `★ ${parseFloat(item.score).toFixed(1)}` : '', item.qualities && item.qualities[0] ? item.qualities[0] : ''].filter(Boolean).join(' · ');
   const labelEl = document.getElementById('hero-label');
-  if (labelEl) labelEl.textContent = (item.qualities && item.qualities.length) ? item.qualities.join(' · ') : 'Recently Added';
+  if (labelEl) labelEl.textContent = 'Recently Added';
+  // Play + Info buttons
+  const playBtn = document.getElementById('hero-play-btn');
+  const infoBtn = document.getElementById('hero-info-btn');
+  if (playBtn) { playBtn.onclick = () => { window.dispatchEvent(new CustomEvent('play-item', { detail: { item } })); }; }
+  if (infoBtn) { infoBtn.onclick = () => { openDetail(item); playSound('open'); }; }
+  // Hero itself clickable
+  const heroEl = document.getElementById('home-hero');
+  if (heroEl) heroEl.onclick = (e) => { if (!e.target.closest('button') && !e.target.closest('.ticker-item')) { openDetail(item); playSound('open'); } };
 }
 
 export function startHeroCycle(items) {
   heroItems = items.filter(i => i.backdropUrl || i.posterUrl);
   heroIdx = 0;
   clearInterval(heroTimer);
+  renderHeroDots();
   if (heroItems.length < 2) return;
   heroTimer = setInterval(() => {
     heroIdx = (heroIdx + 1) % heroItems.length;
     updateHero(heroItems[heroIdx]);
+    renderHeroDots();
   }, 8000);
+}
+
+function renderHeroDots() {
+  const dotsEl = document.getElementById('hero-dots'); if (!dotsEl) return;
+  dotsEl.innerHTML = '';
+  heroItems.slice(0, 8).forEach((_, i) => {
+    const dot = document.createElement('div'); dot.className = 'hero-dot' + (i === heroIdx ? ' active' : '');
+    dot.addEventListener('click', e => { e.stopPropagation(); heroIdx = i; updateHero(heroItems[i]); renderHeroDots(); clearInterval(heroTimer); heroTimer = setInterval(() => { heroIdx = (heroIdx+1)%heroItems.length; updateHero(heroItems[heroIdx]); renderHeroDots(); }, 8000); });
+    dotsEl.appendChild(dot);
+  });
 }
 
 // ── Sections ──
@@ -43,10 +71,12 @@ export async function renderHomeSections() {
     { key: 'recent',    label: 'Recently Added',       fn: () => API.recentlyAdded() },
     { key: 'popular',   label: 'Most Popular',         fn: () => API.popular() },
     { key: 'history',   label: 'Watch History',        fn: () => API.history() },
-    { key: 'best3d',    label: '🎬 Best in 3D',        fn: () => API.best3D() },
+    { key: 'best3d',    label: 'Best in 3D',           fn: () => API.best3D() },
     { key: 'onthisday', label: 'On This Day',          fn: () => API.onThisDay() },
     { key: 'coming',    label: 'Coming Soon',          fn: () => API.comingSoon() },
     { key: 'random',    label: '🎲 Feeling Lucky',     fn: async () => { const r = await API.random(); return r ? [r] : []; } },
+    { key: 'random2',   label: '🎲 Another Pick',      fn: async () => { const r = await API.random(); return r ? [r] : []; } },
+    { key: 'random3',   label: '🎲 One More',          fn: async () => { const r = await API.random(); return r ? [r] : []; } },
   ];
 
   container.innerHTML = '';

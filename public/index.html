@@ -146,13 +146,20 @@
 
   <!-- Home -->
   <div class="view" id="view-home">
-    <div class="home-hero">
+    <div class="home-hero" id="home-hero">
       <div class="home-hero-bg" id="hero-bg"></div>
+      <div id="hero-dots"></div>
+      <img id="hero-side-poster" src="" alt="" />
       <div class="home-hero-content">
         <div id="hero-ticker"><div id="hero-ticker-inner"></div></div>
-      <div class="home-hero-label" id="hero-label">Now Playing</div>
+        <img id="hero-logo" src="" alt="" />
+        <div class="home-hero-label" id="hero-label">Recently Added</div>
         <div class="home-hero-title" id="hero-title">—</div>
         <div class="home-hero-meta" id="hero-meta"></div>
+        <div id="hero-actions">
+          <button class="home-hero-play" id="hero-play-btn">▶ Play</button>
+          <button class="home-hero-info" id="hero-info-btn">ℹ More Info</button>
+        </div>
       </div>
     </div>
     <div class="home-content" id="home-content">
@@ -332,6 +339,9 @@
           <div class="lib-subsection"><div class="lib-subsection-title">Multiple Versions <span id="cnt-multi"></span></div><div class="lib-list" id="ll-multi"></div></div>
           <div class="lib-subsection"><div class="lib-subsection-title">3D Library <span id="cnt-3d"></span></div><div class="lib-list" id="ll-3d"></div></div>
           <div class="lib-subsection"><div class="lib-subsection-title">2D Only (sample) <span id="cnt-2d"></span></div><div class="lib-list" id="ll-2d"></div></div>
+          <div class="lib-subsection"><div class="lib-subsection-title">🎯 Recommended 3D Upgrades <span id="cnt-rec3d"></span></div>
+            <div style="font-size:9px;color:var(--muted);margin-bottom:8px">Movies in your library known to be great in 3D but only have a 2D version.</div>
+            <div class="lib-list" id="ll-rec3d"></div></div>
         </div>
 
         <div class="lib-section" id="ls-music">
@@ -463,6 +473,7 @@
       <div class="settings-section-title">Features</div>
       <div class="settings-row"><span class="settings-label">Show weather</span><div class="settings-toggle on" id="s-weather"></div></div>
       <div class="settings-row"><span class="settings-label">Trailer QR codes</span><div class="settings-toggle on" id="s-trailer"></div></div>
+      <div class="settings-row"><span class="settings-label">Music tab</span><div class="settings-toggle on" id="s-music"></div></div>
       <div class="settings-row"><span class="settings-label">Screensaver</span><div class="settings-toggle on" id="s-ss"></div></div>
       <div class="settings-row"><span class="settings-label">Sounds</span><div class="settings-toggle on" id="s-sounds"></div></div>
     </div>
@@ -494,7 +505,15 @@
         <div><label style="display:block;font-size:8px;letter-spacing:0.15em;text-transform:uppercase;color:var(--muted);margin-bottom:3px">TMDB API Key</label><input class="settings-input" id="si-tmdb" style="width:100%" type="password" placeholder="••••••••" /></div>
         <div><label style="display:block;font-size:8px;letter-spacing:0.15em;text-transform:uppercase;color:var(--muted);margin-bottom:3px">Anthropic API Key</label><input class="settings-input" id="si-anthropic" style="width:100%" type="password" placeholder="sk-ant-..." /></div>
         <div><label style="display:block;font-size:8px;letter-spacing:0.15em;text-transform:uppercase;color:var(--muted);margin-bottom:3px">Discord Webhook URL</label><input class="settings-input" id="si-discord" style="width:100%" type="text" placeholder="https://discord.com/api/webhooks/..." /></div>
-        <button class="qa-btn" id="si-save" style="margin-top:4px">💾 Save Integrations</button>
+        <div style="display:flex;gap:6px;margin-top:4px;flex-wrap:wrap">
+          <button class="qa-btn" id="si-save">💾 Save</button>
+          <button class="qa-btn" id="si-test-jellyseerr">Test Jellyseerr</button>
+          <button class="qa-btn" id="si-test-radarr">Test Radarr</button>
+          <button class="qa-btn" id="si-test-sonarr">Test Sonarr</button>
+          <button class="qa-btn" id="si-test-tmdb">Test TMDB</button>
+          <button class="qa-btn" id="si-test-anthropic">Test AI</button>
+          <button class="qa-btn" id="si-test-discord">Test Discord</button>
+        </div>
         <div id="si-status" style="font-size:9px;color:var(--muted);min-height:14px;font-style:italic"></div>
       </div>
     </div>
