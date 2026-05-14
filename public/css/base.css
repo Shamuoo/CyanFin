@@ -611,3 +611,19 @@ a { color: inherit; text-decoration: none; }
 /* ── Scrollbar accent ── */
 ::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.08); }
 ::-webkit-scrollbar-thumb:hover { background: var(--accent); opacity: 0.4; }
+
+/* ── Seasons overlay ── */
+#seasons-overlay { display: none; }
+#seasons-overlay.open { display: flex !important; }
+
+/* ── Audio bar ── */
+.audio-bar { transform: translateY(100%); }
+.audio-bar.visible { transform: translateY(0) !important; }
+#audio-shuffle-btn.active, #audio-repeat-btn.active { color: var(--accent); border-color: var(--border); }
+
+/* ── Stats view ── */
+#view-stats { overflow-y: auto; scrollbar-width: none; }
+#view-stats::-webkit-scrollbar { display: none; }
+
+/* ── cast role ── */
+.cast-role { font-size: 7px; color: var(--muted); opacity: 0.5; text-align: center; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; width: 58px; }

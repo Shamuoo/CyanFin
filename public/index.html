@@ -115,6 +115,7 @@
       <button class="nav-link" data-view="shows">TV Shows</button>
       <button class="nav-link" data-view="music">Music</button>
       <button class="nav-link" data-view="library">Library</button>
+      <button class="nav-link" data-view="stats">Stats</button>
       <button class="nav-link" data-view="health">Health</button>
     </div>
     <div class="nav-right">
@@ -261,6 +262,13 @@
     <div id="music-content" style="padding:0 32px 32px"></div>
   </div>
 
+
+  <!-- Stats -->
+  <div class="view" id="view-stats">
+    <div class="view-header"><div class="view-title">Statistics</div></div>
+    <div class="h-grid" id="stats-grid"></div>
+  </div>
+
   <!-- Library Tools -->
   <div class="view" id="view-library">
     <div class="view-header" style="padding-bottom:0"><div class="view-title">Library Tools</div></div>
@@ -351,6 +359,18 @@
     <div class="h-grid" id="health-grid"></div>
     <div style="padding:0 32px 8px;font-size:8px;font-weight:700;letter-spacing:0.3em;text-transform:uppercase;color:var(--accent);opacity:0.4">Activity Log</div>
     <div id="health-activity" style="padding:0 32px 32px;display:flex;flex-direction:column;gap:5px"></div>
+  </div>
+
+
+  <!-- Seasons overlay -->
+  <div id="seasons-overlay" style="position:fixed;inset:0;z-index:180;background:rgba(0,0,0,0.88);display:none;flex-direction:column;align-items:center;overflow-y:auto;transition:opacity 0.3s">
+    <div style="width:min(800px,96vw);padding:32px 24px">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:24px">
+        <div id="seasons-title" style="font-family:var(--font-display);font-size:18px;letter-spacing:0.3em;color:var(--accent)"></div>
+        <button id="seasons-close" class="back-btn">✕ Close</button>
+      </div>
+      <div id="seasons-content"></div>
+    </div>
   </div>
 
   <!-- Search overlay -->
@@ -503,6 +523,30 @@
       <div id="ss-overview"></div>
     </div>
     <div id="ss-bar-wrap"><div id="ss-bar"></div></div>
+  </div>
+
+
+  <!-- Audio bar -->
+  <div id="audio-bar" style="position:fixed;bottom:0;left:0;right:0;z-index:120;background:rgba(10,8,4,0.95);backdrop-filter:blur(20px);border-top:1px solid rgba(255,255,255,0.06);padding:10px 32px;display:none;align-items:center;gap:16px;transform:translateY(100%);transition:transform 0.3s">
+    <div style="flex:1;min-width:0">
+      <div id="audio-track-title" style="font-size:12px;font-weight:700;color:var(--cream);opacity:0.7;overflow:hidden;text-overflow:ellipsis;white-space:nowrap"></div>
+      <div id="audio-track-artist" style="font-size:10px;color:var(--muted);margin-top:1px"></div>
+    </div>
+    <div style="display:flex;align-items:center;gap:8px">
+      <button id="audio-prev-btn" class="nav-icon-btn" style="font-size:14px">⏮</button>
+      <button id="audio-play-btn" class="nav-icon-btn" style="font-size:16px;width:36px;height:36px">▶</button>
+      <button id="audio-next-btn" class="nav-icon-btn" style="font-size:14px">⏭</button>
+      <button id="audio-shuffle-btn" class="nav-icon-btn" style="font-size:12px">⇄</button>
+      <button id="audio-repeat-btn" class="nav-icon-btn" style="font-size:12px">↺</button>
+    </div>
+    <div style="display:flex;align-items:center;gap:8px;flex:1">
+      <span id="audio-current" style="font-size:10px;color:var(--muted);font-variant-numeric:tabular-nums">0:00</span>
+      <div id="audio-progress" style="flex:1;height:4px;background:rgba(255,255,255,0.1);border-radius:2px;cursor:pointer;position:relative">
+        <div id="audio-progress-fill" style="height:100%;background:var(--accent);border-radius:2px;width:0%"></div>
+      </div>
+      <span id="audio-total" style="font-size:10px;color:var(--muted);font-variant-numeric:tabular-nums">0:00</span>
+    </div>
+    <input id="audio-vol" type="range" min="0" max="100" value="80" style="width:60px;accent-color:var(--accent)" />
   </div>
 
   <!-- Toast container -->

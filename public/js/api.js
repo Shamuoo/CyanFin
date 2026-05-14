@@ -1,31 +1,18 @@
-// API client — all fetch calls go through here
+// CyanFin API client v0.10
 const API = {
   async request(path, options = {}) {
-    const res = await fetch(path, {
-      headers: { 'Content-Type': 'application/json', ...options.headers },
-      ...options,
-    });
-    if (res.status === 401) {
-      window.dispatchEvent(new CustomEvent('auth:expired'));
-      throw new Error('Unauthorized');
-    }
-    if (!res.ok) {
-      const err = await res.json().catch(() => ({ error: res.statusText }));
-      throw new Error(err.error || `HTTP ${res.status}`);
-    }
+    const res = await fetch(path, { headers: { 'Content-Type': 'application/json', ...options.headers }, ...options });
+    if (res.status === 401) { window.dispatchEvent(new CustomEvent('auth:expired')); throw new Error('Unauthorized'); }
+    if (!res.ok) { const err = await res.json().catch(() => ({ error: res.statusText })); throw new Error(err.error || `HTTP ${res.status}`); }
     if (res.status === 204) return null;
     return res.json();
   },
-
   get(path) { return this.request(path); },
   post(path, body) { return this.request(path, { method: 'POST', body: JSON.stringify(body) }); },
-
-  // Auth
   login(username, password) { return this.post('/api/auth/login', { username, password }); },
   logout() { return this.get('/api/auth/logout'); },
   me() { return this.get('/api/auth/me'); },
-
-  // Media
+  config() { return this.get('/api/config'); },
   nowPlaying() { return this.get('/api/now-playing'); },
   recentlyAdded() { return this.get('/api/recently-added'); },
   continueWatching() { return this.get('/api/continue-watching'); },
@@ -36,54 +23,46 @@ const API = {
   onThisDay() { return this.get('/api/on-this-day'); },
   best3D() { return this.get('/api/best-3d'); },
   stats() { return this.get('/api/stats'); },
-  weather(city) { return this.get(`/api/weather?city=${encodeURIComponent(city)}`); },
-  search(q) { return this.get(`/api/search?q=${encodeURIComponent(q)}`); },
-  genres(type) { return this.get(`/api/genres?type=${type || 'Movie'}`); },
-  item(id) { return this.get(`/api/items/${id}`); },
-
-  // Movies
-  movies(params = {}) {
-    const q = new URLSearchParams(params).toString();
-    return this.get(`/api/movies?${q}`);
-  },
-
-  // TV
-  shows(params = {}) {
-    const q = new URLSearchParams(params).toString();
-    return this.get(`/api/shows?${q}`);
-  },
-  seasons(showId) { return this.get(`/api/shows/${showId}/seasons`); },
-  episodes(showId, seasonId) { return this.get(`/api/shows/${showId}/seasons/${seasonId}/episodes`); },
-
-  // Music
-  artists() { return this.get('/api/music/artists'); },
-  albums(artistId) { return this.get(`/api/music/albums${artistId ? `?artistId=${artistId}` : ''}`); },
-  tracks(albumId) { return this.get(`/api/music/tracks?albumId=${albumId}`); },
-
-  // Playback
+  weather(city) { return this.get('/api/weather?city=' + encodeURIComponent(city)); },
+  search(q) { return this.get('/api/search?q=' + encodeURIComponent(q)); },
+  genres(type) { return this.get('/api/genres?type=' + (type || 'Movie')); },
+  item(id) { return this.get('/api/items/' + id); },
   playbackInfo(id) { return this.get('/api/playback-info?id=' + id); },
-
-  // Health
+  movies(params) { return this.get('/api/movies?' + new URLSearchParams(params || {})); },
+  shows(params) { return this.get('/api/shows?' + new URLSearchParams(params || {})); },
+  seasons(showId) { return this.get('/api/shows/' + showId + '/seasons'); },
+  episodes(showId, seasonId) { return this.get('/api/shows/' + showId + '/seasons/' + seasonId + '/episodes'); },
+  artists() { return this.get('/api/music/artists'); },
+  albums(artistId) { return this.get('/api/music/albums' + (artistId ? '?artistId=' + artistId : '')); },
+  tracks(albumId) { return this.get('/api/music/tracks?albumId=' + albumId); },
   health() { return this.get('/api/health'); },
   systemStats() { return this.get('/api/system-stats'); },
-
-  // Library tools
   libQuality() { return this.get('/api/library/quality-report'); },
   libMissing() { return this.get('/api/library/missing-content'); },
   libVersions() { return this.get('/api/library/versions-report'); },
   libMusic() { return this.get('/api/library/music-report'); },
   libScan() { return this.get('/api/library/scan'); },
   libRefreshAll() { return this.get('/api/library/refresh-all'); },
-  libRefreshMeta(id) { return this.get(`/api/library/refresh-metadata?id=${id}`); },
-  libRefreshImages(id) { return this.get(`/api/library/refresh-images?id=${id}`); },
-  libGetItem(id) { return this.get(`/api/library/get-item?id=${id}`); },
+  libRefreshMeta(id) { return this.get('/api/library/refresh-metadata?id=' + id); },
+  libRefreshImages(id) { return this.get('/api/library/refresh-images?id=' + id); },
+  libGetItem(id) { return this.get('/api/library/get-item?id=' + id); },
   libUpdateItem(itemId, updates) { return this.post('/api/library/update-item', { itemId, updates }); },
   libAiFix(itemId) { return this.post('/api/library/ai-autofix', { itemId }); },
-  libThresholds(params) { return this.get(`/api/library/thresholds?${new URLSearchParams(params).toString()}`); },
-
-  // Proxy helpers
-  imageUrl(id, type = 'Primary', w = 600) { return `/proxy/image?id=${id}&type=${type}&w=${w}`; },
-  streamUrl(id) { return `/proxy/stream?id=${id}`; },
+  libThresholds(params) { return this.get('/api/library/thresholds?' + new URLSearchParams(params)); },
+  watchTime(days) { return this.get('/api/stats/watch-time?days=' + (days || 30)); },
+  topGenres() { return this.get('/api/stats/top-genres'); },
+  topMovies() { return this.get('/api/stats/top-movies'); },
+  activity(limit) { return this.get('/api/stats/activity?limit=' + (limit || 20)); },
+  statsSummary() { return this.get('/api/stats/summary'); },
+  segments(itemId) { return this.get('/api/stats/segments?itemId=' + itemId); },
+  integrationsConfig() { return this.get('/api/integrations/config'); },
+  jellyseerrStatus() { return this.get('/api/integrations/jellyseerr-status'); },
+  requestMedia(mediaType, tmdbId) { return this.post('/api/integrations/request', { mediaType, tmdbId }); },
+  searchJellyseerr(q) { return this.get('/api/integrations/search-jellyseerr?q=' + encodeURIComponent(q)); },
+  radarrStatus() { return this.get('/api/integrations/radarr-status'); },
+  radarrMovie(tmdbId) { return this.get('/api/integrations/radarr-movie?tmdbId=' + tmdbId); },
+  sonarrStatus() { return this.get('/api/integrations/sonarr-status'); },
+  discordNotify(data) { return this.post('/api/integrations/discord-notify', data); },
+  imageUrl(id, type, w) { return '/proxy/image?id=' + id + '&type=' + (type || 'Primary') + '&w=' + (w || 600); },
 };
-
 export default API;

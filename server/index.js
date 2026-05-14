@@ -9,12 +9,14 @@ const auth = require('./auth');
 const tmdb = require('./tmdb');
 const { handleApi } = require('./routes/api');
 const { handleLibrary, handleLibraryPost } = require('./routes/library');
+const { handleIntegrations } = require('./routes/integrations');
+const { handleStats } = require('./routes/stats');
 
 const PORT = parseInt(process.env.PORT || '3000');
 const JELLYFIN_URL = (process.env.JELLYFIN_URL || '').replace(/\/$/, '');
 const JELLYFIN_API_KEY = process.env.JELLYFIN_API_KEY || '';
 const TMDB_API_KEY = process.env.TMDB_API_KEY || '';
-const VERSION = '0.9.7';
+const VERSION = '0.10.0';
 
 if (!JELLYFIN_URL) console.warn('[warn] JELLYFIN_URL not set');
 
@@ -214,6 +216,23 @@ const server = http.createServer(async (req, res) => {
     if (pathname.startsWith('/api/library/')) {
       try {
         const result = await handleLibrary(pathname, parsed.query, session, req);
+        if (result !== null) return json(res, result);
+      } catch(e) { return json(res, { error: e.message }, 500); }
+    }
+
+    // Integrations
+    if (pathname.startsWith('/api/integrations/')) {
+      const body = req.method === 'POST' ? await readBody(req) : {};
+      try {
+        const result = await handleIntegrations(pathname, parsed.query, body, session);
+        if (result !== null) return json(res, result);
+      } catch(e) { return json(res, { error: e.message }, 500); }
+    }
+
+    // Stats
+    if (pathname.startsWith('/api/stats/')) {
+      try {
+        const result = await handleStats(pathname, parsed.query, session);
         if (result !== null) return json(res, result);
       } catch(e) { return json(res, { error: e.message }, 500); }
     }
